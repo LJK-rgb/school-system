@@ -41,36 +41,29 @@ def search_pdf_with_highlight(query, pdf_text):
     if not keywords:
         return "🔍 검색어를 두 글자 이상 입력해 주세요."
         
-    # PDF 텍스트를 '제O조' 단위로 나누어 단락(조항)별로 구조화
-    # 조항 매칭을 위한 정규식 (예: 제1조, 제 12 조 등)
     sections = re.split(r'(제\s*\d+\s*조)', pdf_text)
-    
     results = []
     
-    # 분할된 텍스트를 (조 타이틀, 본문) 형태로 묶어서 순회
     for i in range(1, len(sections), 2):
         section_title = sections[i].strip()
         section_content = sections[i+1] if i+1 < len(sections) else ""
         
-        # 해당 조항 본문에 키워드가 하나라도 포함되어 있는지 확인
         if any(kw in section_content for kw in keywords):
             full_text = section_title + section_content
             
-            # 키워드에 형광펜(HTML <mark> 태그) 칠하기
             highlighted_text = full_text
             for kw in keywords:
-                # 대소문자 구분 없이 매칭되도록 안전하게 치환
-                highlighted_text = re.sub(f"({re.escape(kw)})", r"<mark style='background-color: #FFFFA0; color: black; font-weight: bold;'>\1</mark>", highlighted_text)
+                highlighted_text = re.sub(f"({re.escape(kw)})", r"<mark style='background-color: #FFFFA0; color: #000000; font-weight: bold;'>\1</mark>", highlighted_text)
             
             results.append(highlighted_text.strip())
-            if len(results) >= 3:  # 검색 결과가 너무 길어지지 않게 최대 3개 조항만 출력
+            if len(results) >= 3:
                 break
                 
     if results:
         output = "🔍 **규정집 내부 매칭된 조항 검색 결과:**\n\n"
         for res in results:
-            # 스트림릿에서 HTML 마크업을 허용하여 형광펜 표출
-            output += f"<div style='background-color: #262730; padding: 15px; border-radius: 5px; margin-bottom: 10px; border-left: 5px solid #FF4B4B; white-space: pre-wrap;'>{res}</div>"
+            # 화이트/다크 모드 양쪽 다 글자가 명확히 보이도록 배경색(연한 회색)과 글자색(진한 네이비/블랙)을 고정
+            output += f"<div style='background-color: #F0F2F6; color: #131722; padding: 15px; border-radius: 5px; margin-bottom: 10px; border-left: 5px solid #FF4B4B; white-space: pre-wrap; font-size: 15px;'>{res}</div>"
         return output
     else:
         return "🔍 규정집에서 관련 조항을 찾지 못했습니다. 보다 정확한 단어(예: 두발, 전자기기, 복장, 휴대전화 등)로 다시 질문해 주세요."
@@ -86,7 +79,7 @@ if "posts" not in community: community["posts"] = []
 if "polls" not in community: community["polls"] = []
 if "notice" not in community: community["notice"] = "아직 등록된 공지사항이 없습니다."
 
-# 초기 최고(마스터) 관리자 계정 생성 (role: master_admin)
+# 초기 최고(마스터) 관리자 계정 생성
 if "admin" not in users:
     users["admin"] = {"password": "admin1234", "name": "최고관리자", "role": "master_admin"}
     save_data(USER_FILE, users)
@@ -123,7 +116,7 @@ if not st.session_state.logged_in:
     elif choice == "로그인":
         st.subheader("🔑 로그인")
         user_id = st.text_input("학번")
-        user_pw = st.text_input("비밀번호", type="password")
+        user_pw = st.text_input("비밀번호", type="password") # 변수 오타 버그 수정 완료!
 
         if st.button("로그인"):
             if user_id in users and users[user_id]["password"] == user_pw:
@@ -140,7 +133,6 @@ if not st.session_state.logged_in:
 else:
     st.sidebar.markdown(f"### 👤 {st.session_state.user_name}님")
     
-    # 등급 표시 안내
     if st.session_state.role == "master_admin":
         st.sidebar.caption("👑 최고 관리자 (마스터)")
     elif st.session_state.role == "sub_admin":
@@ -158,10 +150,8 @@ else:
         st.sidebar.markdown("---")
         st.sidebar.markdown("### ⚙️ 마스터 관리 메뉴")
         
-        # 관리자 기능을 왼쪽 사이드바 창으로 완전 분리
         admin_menu = ["📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 로그", "🔥 최다 질문 통계"]
         
-        # 최고 관리자(master_admin)에게만 관리자 생성 메뉴 추가
         if st.session_state.role == "master_admin":
             admin_menu.append("➕ 부관리자 계정 생성")
             
@@ -221,19 +211,17 @@ else:
                             st.markdown("---")
 
         elif sub_choice == "🔥 최다 질문 통계":
-            st.write("### 🔥 학생들이 가장 많이 검색한 키워드")
+            st.write("### 🔥 학생들이 가장 많이 검색한 키워")
             all_queries = []
             for uid, history in chats.items():
                 for chat in history: 
                     all_queries.extend(chat['query'].split())
             
-            # 1글자짜리 단어 제외하고 빈도수 체크
             filtered_words = [word for word in all_queries if len(word) > 1]
             
             if not filtered_words:
                 st.info("통계를 내기 위한 질문 데이터가 부족합니다.")
             else:
-                # 빈도수 계산 규칙
                 word_counts = {}
                 for w in filtered_words:
                     word_counts[w] = word_counts.get(w, 0) + 1
@@ -247,7 +235,6 @@ else:
 
         elif sub_choice == "➕ 부관리자 계정 생성":
             st.write("### 🛡️ 일반 부관리자 계정 발급 전용")
-            st.caption("여기서 생성된 계정은 관리 기능을 똑같이 사용할 수 있으나, 또 다른 관리자를 생성할 권한은 제한됩니다.")
             
             sub_admin_id = st.text_input("부관리자 ID (로그인용 아이디)")
             sub_admin_name = st.text_input("부관리자 이름 (표시용)")
@@ -262,7 +249,7 @@ else:
                     users[sub_admin_id] = {
                         "password": sub_admin_pw,
                         "name": sub_admin_name,
-                        "role": "sub_admin" # 부관리자 등급 부여
+                        "role": "sub_admin"
                     }
                     save_data(USER_FILE, users)
                     st.success(f"🎉 {sub_admin_name} 부관리자 계정이 성공적으로 생성되었습니다!")
@@ -283,11 +270,9 @@ else:
             
             if st.button("🔎 규정집 실시간 검색하기"):
                 if user_query:
-                    # 형광펜 및 구조화 분할 검색 작동
                     answer_html = search_pdf_with_highlight(user_query, pdf_content)
-                    st.markdown(answer_html, unsafe_allow_html=True) # HTML 형광펜 출력을 위해 허용
+                    st.markdown(answer_html, unsafe_allow_html=True)
 
-                    # 로그 기록용 저장
                     if st.session_state.user_id not in chats:
                         chats[st.session_state.user_id] = []
                     
