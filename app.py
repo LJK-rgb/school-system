@@ -82,7 +82,7 @@ if "notice_comments" not in community: community["notice_comments"] = []
 
 # [새출발 관리자 세팅] 강제 동기화
 if "admin" not in users or users["admin"].get("role") != "master_admin":
-    users["admin"] = {"password": "admin1234", "name": "최고관리자", "role": "master_admin"}
+    users["admin"] = {"password": "ahsknue2026_2026!", "name": "최고관리자", "role": "master_admin"}
     save_data(USER_FILE, users)
 
 # 스트림릿 앱 상태 초기화
