@@ -2,7 +2,7 @@ import streamlit as st
 import json
 import os
 from datetime import datetime
-import pypdf  # PDF 텍스트 추출용 라이브러리 추가
+import pypdf  # PDF 텍스트 추출용 라이브러리
 
 # 데이터 저장용 파일 설정
 USER_FILE = "users.json"
@@ -36,7 +36,6 @@ def search_pdf(query, pdf_text):
     if not pdf_text:
         return "⚠️ 현재 서버에 학교 규정집 PDF 파일이 없거나 읽을 수 없습니다."
     
-    # 입력한 키워드가 포함된 문단을 찾는 아주 심플한 검색 엔진 규칙
     keywords = query.split()
     lines = pdf_text.split("\n")
     results = []
@@ -44,7 +43,7 @@ def search_pdf(query, pdf_text):
     for line in lines:
         if any(kw in line for kw in keywords if len(kw) > 1):
             results.append(line.strip())
-            if len(results) >= 5:  # 너무 길어지지 않게 최대 5줄만 추출
+            if len(results) >= 5:
                 break
                 
     if results:
@@ -100,7 +99,7 @@ if not st.session_state.logged_in:
     elif choice == "로그인":
         st.subheader("🔑 로그인")
         user_id = st.text_input("학번")
-        user_pw = st.text_input("비밀번호", type="password")
+        user_pw = st.text_input("비밀密码", type="password")
 
         if st.button("로그인"):
             if user_id in users and users[user_id]["password"] == user_pw:
@@ -157,7 +156,6 @@ else:
         elif sub_choice == "💬 학생 대화 로그 확인":
             st.write("### 💬 학생들의 질문 기록 및 통계")
             
-            # 간단한 인기 질문 통계 내기
             all_queries = []
             for uid, history in chats.items():
                 for c in history: all_queries.append(c['query'])
@@ -187,8 +185,8 @@ else:
 
     # ==================== [ 학생 / 사용자 메인 화면 ] ====================
     else:
-        # 상단 공지사항 상시 띄우기
-        st.notice(f"📢 **학교 공지사항:** {community['notice']}")
+        # st.notice 에러 유발 구역을 st.info로 안전하게 교체 완료!
+        st.info(f"📢 **학교 공지사항:** {community['notice']}")
         
         tab1, tab2, tab3 = st.tabs(["🤖 규정 질문 챗봇", "🏛️ 학생 소통 커뮤니티", "📊 실시간 투표존"])
 
@@ -201,11 +199,9 @@ else:
             
             if st.button("질문하기"):
                 if user_query:
-                    # PDF 기반 실시간 키워드 검색 답변 작동!
                     answer = search_pdf(user_query, pdf_content)
                     st.write(answer)
 
-                    # 대화 로그 저장
                     if st.session_state.user_id not in chats:
                         chats[st.session_state.user_id] = []
                     
@@ -216,11 +212,10 @@ else:
                     })
                     save_data(CHAT_FILE, chats)
 
-        # ---- 탭 2: 커뮤니티 (글쓰기, 하트, 댓글) ----
+        # ---- 탭 2: 커뮤니티 ----
         with tab2:
             st.write("### 🏛️ 익명/실명 학생 대나무숲")
             
-            # 새 글 쓰기 구역
             with st.form("community_form", clear_on_submit=True):
                 post_content = st.text_area("학교 생활이나 궁금한 점을 자유롭게 이야기해 보세요!", placeholder="매너를 지켜 글을 작성해 주세요.")
                 is_anonymous = st.checkbox("익명으로 올리기")
@@ -239,7 +234,6 @@ else:
                     st.success("글이 정상적으로 등록되었습니다!")
                     st.rerun()
 
-            # 글 목록 피드 띄우기
             st.write("---")
             if not community["posts"]:
                 st.info("가장 먼저 첫 게시글의 주인공이 되어보세요!")
@@ -248,24 +242,21 @@ else:
                     st.markdown(f"👤 **{post['author']}**")
                     st.info(post["content"])
                     
-                    # 좋아요(하트) 기능
                     col1, col2 = st.columns([1, 5])
                     with col1:
                         like_label = f"❤️ {len(post['likes'])}"
                         if st.button(like_label, key=f"like_{idx}"):
                             if st.session_state.user_id in post["likes"]:
-                                post["likes"].remove(st.session_state.user_id) # 이미 눌렀으면 취소
+                                post["likes"].remove(st.session_state.user_id)
                             else:
                                 post["likes"].append(st.session_state.user_id)
                             save_data(COMMUNITY_FILE, community)
                             st.rerun()
                             
-                    # 댓글 달기 및 보기
                     with st.expander(f"💬 댓글 ({len(post['comments'])}개) 열기"):
                         for comment in post["comments"]:
                             st.write(f"↳ **{comment['author']}**: {comment['text']}")
                         
-                        # 새 댓글 입력
                         with st.form(f"comment_form_{idx}", clear_on_submit=True):
                             comment_text = st.text_input("댓글 쓰기", placeholder="따뜻한 댓글을 남겨주세요.")
                             if st.form_submit_button("등록"):
