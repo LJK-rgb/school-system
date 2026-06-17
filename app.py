@@ -93,33 +93,19 @@ if "logged_in" not in st.session_state:
 # --- 메인 화면 타이틀 ---
 st.title("🏫 신입생 학교생활 가이드 & 커뮤니티")
 
-# --- 1. 로그아웃 상태일 때 (로그인/회원가입 화면) ---
+# --- 1. 로그아웃 상태일 때 (메인 화면 중앙에 로그인/회원가입 탭 배치) ---
 if not st.session_state.logged_in:
-    menu = ["로그인", "회원가입"]
-    choice = st.sidebar.selectbox("메뉴", menu)
+    st.info("👋 안녕하세요! 서비스를 이용하시려면 로그인이나 회원가입을 진행해 주세요.")
+    
+    # 사이드바 메뉴 대신 메인 중앙에 탭 배치로 가시성 극대화!
+    auth_tab1, auth_tab2 = st.tabs(["🔑 로그인", "📝 회원가입"])
 
-    if choice == "회원가입":
-        st.subheader("📝 회원가입")
-        new_id = st.text_input("학번 (아이디로 사용)", placeholder="예: 10101")
-        new_name = st.text_input("이름")
-        new_pw = st.text_input("비밀번호", type="password")
-        
-        if st.button("가입하기"):
-            if not new_id or not new_name or not new_pw: 
-                st.error("모든 칸을 입력해주세요.")
-            elif new_id in users or new_id == "admin": 
-                st.error("이미 존재하는 학번이거나 사용할 수 없는 ID입니다.")
-            else:
-                users[new_id] = {"password": new_pw, "name": new_name, "role": "user"}
-                save_data(USER_FILE, users)
-                st.success("회원가입이 완료되었습니다! 로그인해주세요.")
+    with auth_tab1:
+        st.subheader("로그인")
+        user_id = st.text_input("학번 / 아이디", key="login_id_input")
+        user_pw = st.text_input("비밀번호", type="password", key="login_pw_input")
 
-    elif choice == "로그인":
-        st.subheader("🔑 로그인")
-        user_id = st.text_input("학번 / 아이디")
-        user_pw = st.text_input("비밀번호", type="password")
-
-        if st.button("로그인"):
+        if st.button("로그인하기", use_container_width=True):
             if user_id in users and users[user_id]["password"] == user_pw:
                 st.session_state.logged_in = True
                 st.session_state.user_id = user_id
@@ -132,10 +118,26 @@ if not st.session_state.logged_in:
                 else:
                     st.session_state.role = "user"
                     
-                st.success(f"{st.session_state.user_name}님 로그인 성공!")
+                st.success(f"🎉 {st.session_state.user_name}님 로그인 성공!")
                 st.rerun()
             else:
                 st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
+
+    with auth_tab2:
+        st.subheader("회원가입")
+        new_id = st.text_input("학번 (아이디로 사용)", placeholder="예: 10101", key="join_id_input")
+        new_name = st.text_input("이름", key="join_name_input")
+        new_pw = st.text_input("비밀번호", type="password", key="join_pw_input")
+        
+        if st.button("가입하기", use_container_width=True):
+            if not new_id or not new_name or not new_pw: 
+                st.error("모든 칸을 입력해주세요.")
+            elif new_id in users or new_id == "admin": 
+                st.error("이미 존재하는 학번이거나 사용할 수 없는 ID입니다.")
+            else:
+                users[new_id] = {"password": new_pw, "name": new_name, "role": "user"}
+                save_data(USER_FILE, users)
+                st.success("🎉 회원가입이 완료되었습니다! 로그인 탭으로 이동해 로그인해주세요.")
 
 # --- 2. 로그인 완료 상태일 때 ---
 else:
@@ -148,7 +150,7 @@ else:
     else:
         st.sidebar.markdown("🎓 **등급:** `일반 학생 사용자`")
         
-    if st.sidebar.button("로그아웃"):
+    if st.sidebar.button("로그아웃", use_container_width=True):
         st.session_state.logged_in = False
         st.session_state.user_id = None
         st.session_state.user_name = None
@@ -160,7 +162,6 @@ else:
         st.sidebar.markdown("---")
         st.sidebar.markdown("### 🛠️ 관리자 전용 메뉴")
         
-        # [업데이트] '🔍 학생 계정 관리' 메뉴 추가
         admin_menu = ["🔍 학생 계정 관리", "📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 로그", "🔥 최다 질문 통계"]
         
         if st.session_state.role == "master_admin":
@@ -170,17 +171,14 @@ else:
 
         st.subheader(f"⚙️ 관리 제어판 -> {sub_choice}")
 
-        # ---- [신규 기능] 🔍 학생 계정 관리 패널 ----
+        # ---- 🔍 학생 계정 관리 패널 ----
         if sub_choice == "🔍 학생 계정 관리":
             st.write("#### 👤 학생 정보 실시간 검색 및 수정/삭제")
             st.caption("비밀번호를 분실한 학생의 학번을 입력해 찾거나 정보를 변경할 수 있습니다.")
             
-            # 검색창 만들기
             search_uid = st.text_input("🔍 학번 입력 검색 (빈칸으로 두면 전체 조회)", placeholder="예: 10101")
-            
             st.markdown("---")
             
-            # 검색 조건에 맞춰 필터링 (관리자 본인 계정들은 노출 제외하여 가독성 확보)
             target_users = {}
             if search_uid:
                 if search_uid in users and users[search_uid].get("role", "user") == "user":
@@ -188,13 +186,11 @@ else:
                 else:
                     st.info("검색된 일반 학생 계정이 없습니다.")
             else:
-                # 전체 일반 학생 리스트만 바인딩
                 target_users = {k: v for k, v in users.items() if v.get("role", "user") == "user"}
 
             if target_users:
                 for u_id, u_info in target_users.items():
                     with st.expander(f"📋 학번: {u_id} | 이름: {u_info['name']} 학생 계정 설정"):
-                        # 실시간 조회 및 수정을 위한 폼 구성
                         edit_name = st.text_input(f"이름 수정 ({u_id})", value=u_info['name'], key=f"name_{u_id}")
                         edit_pw = st.text_input(f"비밀번호 조회/수정 ({u_id})", value=u_info['password'], key=f"pw_{u_id}")
                         
