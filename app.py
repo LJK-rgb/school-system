@@ -176,6 +176,11 @@ else:
         
         admin_menu = ["🔍 전체 계정 관리", "📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 로그", "🔥 최다 질문 통계"]
         
+        # 일반 관리자(sub_admin)에게만 학생용 커뮤니티/투표 모니터링 메뉴 추가
+        if st.session_state.role == "sub_admin":
+            admin_menu.append("🏛️ 학생 커뮤니티 보기")
+            admin_menu.append("📊 실시간 투표존 보기")
+            
         if st.session_state.role == "master_admin":
             admin_menu.append("➕ 일반 관리자 계정 생성")
             
@@ -235,7 +240,6 @@ else:
             with col_n1:
                 if st.button("📢 공지사항 업데이트", use_container_width=True):
                     community["notice"] = new_notice
-                    # 공지사항을 수정한 관리자의 이름과 시간 기록
                     community["notice_author"] = st.session_state.user_name
                     community["notice_time"] = datetime.now().strftime("%Y-%m-%d %H:%M")
                     save_data(COMMUNITY_FILE, community)
@@ -349,6 +353,36 @@ else:
                 for rank, (word, cnt) in enumerate(top_five, 1):
                     st.write(f"🥇 **{rank}위** : `{word}` (총 {cnt}회 조회)")
 
+        # ---- [추가] 일반 관리자 등급용 커뮤니티 모니터링 뷰 ----
+        elif sub_choice == "🏛️ 학생 커뮤니티 보기":
+            st.write("### 🏛️ 익명/실명 학생 대나무숲 (일반 관리자 모니터링 뷰)")
+            if not community["posts"]:
+                st.info("현재 대나무숲에 등록된 게시글이 없습니다.")
+            else:
+                for idx, post in enumerate(community["posts"]):
+                    st.markdown(f"👤 **{post['author']}**")
+                    st.info(post["content"])
+                    st.write(f"❤️ 공감 {len(post['likes'])}개 | 💬 댓글 {len(post['comments'])}개")
+                    for comment in post["comments"]:
+                        st.write(f"↳ **{comment['author']}**: {comment['text']}")
+                    st.markdown("---")
+
+        # ---- [추가] 일반 관리자 등급용 투표 모니터링 뷰 ----
+        elif sub_choice == "📊 실시간 투표존 보기":
+            st.write("### 📊 실시간 학생 투표광장 (일반 관리자 모니터링 뷰)")
+            if not community["polls"]:
+                st.info("현재 개설된 투표가 없습니다.")
+            else:
+                for p_idx, poll in enumerate(community["polls"]):
+                    status_label = "🔒 [마감됨]" if poll.get("is_closed", False) else "🔓 [진행중]"
+                    st.write(f"#### {status_label} 주제: {poll['title']}")
+                    st.markdown("**📊 실시간 투표 현황 집계:**")
+                    for opt, val in poll["votes"].items():
+                        st.write(f"✔️ **{opt}** : {val}표")
+                    for p_comment in poll.get("comments", []):
+                        st.write(f"↳ **{p_comment['author']}**: {p_comment['text']}")
+                    st.markdown("---")
+
         elif sub_choice == "➕ 일반 관리자 계정 생성":
             st.write("#### 🛡️ 신규 일반 관리자(General Admin) 계정 발급")
             sub_id = st.text_input("일반 관리자용 로그인 ID")
@@ -367,7 +401,6 @@ else:
 
     # ==================== [[ 학생 / 사용자 전용 일반 메인 화면 ]] ====================
     else:
-        # 공지사항 박스 내부에 작성자 및 작성 시간 커스텀 라벨 레이아웃 추가
         time_label = f" ({community['notice_time']})" if community["notice_time"] else ""
         st.markdown(f"📢 **학교 공지사항** <span style='font-size:12px; color:#777;'>[작성자: {community['notice_author']}{time_label}]</span>", unsafe_allow_html=True)
         st.info(community['notice'])
