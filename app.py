@@ -302,7 +302,7 @@ else:
                             st.success("투표가 삭제되었습니다.")
                             st.rerun()
 
-        # ---- 🏛️ 커뮤니티 게시글 관리 패널 (댓글/공감 삭제 기능 강화) ----
+        # ---- 🏛️ 커뮤니티 게시글 관리 패널 (에러 유발 속성 수정 완료) ----
         elif sub_choice == "🏛️ 커뮤니티 게시글 관리":
             st.write("#### 🚨 학생 커뮤니티 전체 게시물 관리")
             st.caption("게시글 파기뿐만 아니라 특정 댓글 삭제 및 악의적인 공감수(좋아요) 강제 초기화 제어가 가능합니다.")
@@ -329,7 +329,7 @@ else:
                                 st.success("해당 게시글의 공감 수가 초기화되었습니다.")
                                 st.rerun()
                         
-                        # 관리자 전용 댓글 세부 관리 패널
+                        # 댓글 세부 관리 패널 (st.button 인자 오류 완벽 수정)
                         if post["comments"]:
                             st.markdown("<p style='font-size:13px; font-weight:bold; color:#555; margin-top:8px;'>▼ 댓글 내역 리스트 제어</p>", unsafe_allow_html=True)
                             for c_idx, comment in enumerate(post["comments"]):
@@ -337,7 +337,7 @@ else:
                                 with c_col1:
                                     st.caption(f"↳ **{comment['author']}**: {comment['text']}")
                                 with c_col2:
-                                    if st.button("🗑️ 댓글 삭제", key=f"del_cmt_{idx}_{c_idx}", size="small"):
+                                    if st.button("🗑️ 댓글 삭제", key=f"del_cmt_{idx}_{c_idx}"):
                                         community["posts"][idx]["comments"].pop(c_idx)
                                         save_data(COMMUNITY_FILE, community)
                                         st.warning("선택한 댓글이 삭제되었습니다.")
