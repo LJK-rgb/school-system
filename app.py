@@ -77,10 +77,12 @@ pdf_content = load_pdf_text(PDF_FILE)
 if "posts" not in community: community["posts"] = []
 if "polls" not in community: community["polls"] = []
 if "notice" not in community: community["notice"] = "아직 등록된 공지사항이 없습니다."
+if "notice_author" not in community: community["notice_author"] = "시스템"
+if "notice_time" not in community: community["notice_time"] = ""
 if "notice_likes" not in community: community["notice_likes"] = []
 if "notice_comments" not in community: community["notice_comments"] = []
 
-# 🔒 [60번째 줄 부근] 최고 관리자 계정 정보 강제 동기화 및 새 비밀번호 적용
+# 최고 관리자 계정 정보 강제 동기화
 users["admin"] = {
     "password": "ahsknue2026_2026!", 
     "name": "최고관리자", 
@@ -156,7 +158,7 @@ else:
     if st.session_state.role == "master_admin":
         st.sidebar.markdown("👑 **등급:** `최고 관리자 (마스터)`")
     elif st.session_state.role == "sub_admin":
-        st.sidebar.markdown("🛡️ **등급:** `일반 부관리자`")
+        st.sidebar.markdown("🛡️ **등급:** `일반 관리자`")
     else:
         st.sidebar.markdown("🎓 **등급:** `일반 학생 사용자`")
         
@@ -175,7 +177,7 @@ else:
         admin_menu = ["🔍 전체 계정 관리", "📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 로그", "🔥 최다 질문 통계"]
         
         if st.session_state.role == "master_admin":
-            admin_menu.append("➕ 부관리자 계정 생성")
+            admin_menu.append("➕ 일반 관리자 계정 생성")
             
         sub_choice = st.sidebar.radio("제어할 기능을 선택하세요", admin_menu)
 
@@ -184,7 +186,7 @@ else:
         # ---- 🔍 전체 계정 관리 패널 ----
         if sub_choice == "🔍 전체 계정 관리":
             st.write("#### 👤 교내 멤버 정보 검색 및 수정/삭제")
-            search_uid = st.text_input("🔍 학번 또는 부관리자 ID 입력 검색 (빈칸이면 전체 조회)", placeholder="예: 10101 또는 교사ID")
+            search_uid = st.text_input("🔍 학번 또는 관리자 ID 입력 검색 (빈칸이면 전체 조회)", placeholder="예: 10101 또는 교사ID")
             st.markdown("---")
             
             target_users = {}
@@ -199,11 +201,11 @@ else:
             if target_users:
                 for u_id, u_info in target_users.items():
                     u_role = u_info.get("role", "user")
-                    role_badge = "🛡️ [부관리자]" if u_role == "sub_admin" else "🎓 [일반학생]"
+                    role_badge = "🛡️ [일반 관리자]" if u_role == "sub_admin" else "🎓 [일반학생]"
                     
                     if u_role == "sub_admin" and st.session_state.role != "master_admin":
                         with st.expander(f"{role_badge} ID: {u_id} | 이름: {u_info['name']}"):
-                            st.warning("🔒 부관리자 계정 정보는 최고관리자(master_admin)만 조회 및 수정할 수 있습니다.")
+                            st.warning("🔒 일반 관리자 계정 정보는 최고관리자(master_admin)만 조회 및 수정할 수 있습니다.")
                         continue
                         
                     with st.expander(f"{role_badge} ID/학번: {u_id} | 이름: {u_info['name']} 계정 설정"):
@@ -233,12 +235,17 @@ else:
             with col_n1:
                 if st.button("📢 공지사항 업데이트", use_container_width=True):
                     community["notice"] = new_notice
+                    # 공지사항을 수정한 관리자의 이름과 시간 기록
+                    community["notice_author"] = st.session_state.user_name
+                    community["notice_time"] = datetime.now().strftime("%Y-%m-%d %H:%M")
                     save_data(COMMUNITY_FILE, community)
-                    st.success("공지사항이 업데이트되었습니다.")
+                    st.success("공지사항이 새로운 작성자 정보와 함께 업데이트되었습니다.")
                     st.rerun()
             with col_n2:
                 if st.button("🗑️ 공지사항 및 피드백 전체 초기화", use_container_width=True):
                     community["notice"] = "아직 등록된 공지사항이 없습니다."
+                    community["notice_author"] = "시스템"
+                    community["notice_time"] = ""
                     community["notice_likes"] = []
                     community["notice_comments"] = []
                     save_data(COMMUNITY_FILE, community)
@@ -342,13 +349,13 @@ else:
                 for rank, (word, cnt) in enumerate(top_five, 1):
                     st.write(f"🥇 **{rank}위** : `{word}` (총 {cnt}회 조회)")
 
-        elif sub_choice == "➕ 부관리자 계정 생성":
-            st.write("#### 🛡️ 신규 부관리자(Sub Admin) 계정 발급")
-            sub_id = st.text_input("부관리자용 로그인 ID")
-            sub_name = st.text_input("부관리자 담당자 이름")
-            sub_pw = st.text_input("부관리자용 비밀번호", type="password")
+        elif sub_choice == "➕ 일반 관리자 계정 생성":
+            st.write("#### 🛡️ 신규 일반 관리자(General Admin) 계정 발급")
+            sub_id = st.text_input("일반 관리자용 로그인 ID")
+            sub_name = st.text_input("일반 관리자 담당자 이름")
+            sub_pw = st.text_input("일반 관리자용 비밀번호", type="password")
             
-            if st.button("부관리자 계정 등록"):
+            if st.button("일반 관리자 계정 등록"):
                 if not sub_id or not sub_name or not sub_pw:
                     st.error("빈칸 없이 모두 입력해 주세요.")
                 elif sub_id in users or sub_id == "admin":
@@ -356,11 +363,14 @@ else:
                 else:
                     users[sub_id] = {"password": sub_pw, "name": sub_name, "role": "sub_admin"}
                     save_data(USER_FILE, users)
-                    st.success(f"🎉 {sub_name} 부관리자 계정이 활성화되었습니다!")
+                    st.success(f"🎉 {sub_name} 일반 관리자 계정이 활성화되었습니다!")
 
     # ==================== [[ 학생 / 사용자 전용 일반 메인 화면 ]] ====================
     else:
-        st.info(f"📢 **학교 공지사항:** {community['notice']}")
+        # 공지사항 박스 내부에 작성자 및 작성 시간 커스텀 라벨 레이아웃 추가
+        time_label = f" ({community['notice_time']})" if community["notice_time"] else ""
+        st.markdown(f"📢 **학교 공지사항** <span style='font-size:12px; color:#777;'>[작성자: {community['notice_author']}{time_label}]</span>", unsafe_allow_html=True)
+        st.info(community['notice'])
         
         with st.expander(f"💬 공지사항 반응 남기기 (❤️ {len(community['notice_likes'])} | 댓글 {len(community['notice_comments'])}개)"):
             col_n_like, _ = st.columns([1, 4])
