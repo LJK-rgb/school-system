@@ -2,7 +2,8 @@ import streamlit as st
 import json
 import os
 from datetime import datetime
-import pypdf  # PDF 텍스트 추출용 라이브러리
+import pypdf
+import re
 
 # 데이터 저장용 파일 설정
 USER_FILE = "users.json"
@@ -21,7 +22,7 @@ def save_data(filepath, data):
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-# --- PDF 텍스트 추출 및 심플 검색 함수 ---
+# --- PDF 텍스트 추출 및 구조화 검색 함수 ---
 @st.cache_resource
 def load_pdf_text(filepath):
     if not os.path.exists(filepath):
@@ -32,24 +33,47 @@ def load_pdf_text(filepath):
         text += page.extract_text() + "\n"
     return text
 
-def search_pdf(query, pdf_text):
+def search_pdf_with_highlight(query, pdf_text):
     if not pdf_text:
         return "⚠️ 현재 서버에 학교 규정집 PDF 파일이 없거나 읽을 수 없습니다."
     
-    keywords = query.split()
-    lines = pdf_text.split("\n")
+    keywords = [kw for kw in query.split() if len(kw) > 1]
+    if not keywords:
+        return "🔍 검색어를 두 글자 이상 입력해 주세요."
+        
+    # PDF 텍스트를 '제O조' 단위로 나누어 단락(조항)별로 구조화
+    # 조항 매칭을 위한 정규식 (예: 제1조, 제 12 조 등)
+    sections = re.split(r'(제\s*\d+\s*조)', pdf_text)
+    
     results = []
     
-    for line in lines:
-        if any(kw in line for kw in keywords if len(kw) > 1):
-            results.append(line.strip())
-            if len(results) >= 5:
+    # 분할된 텍스트를 (조 타이틀, 본문) 형태로 묶어서 순회
+    for i in range(1, len(sections), 2):
+        section_title = sections[i].strip()
+        section_content = sections[i+1] if i+1 < len(sections) else ""
+        
+        # 해당 조항 본문에 키워드가 하나라도 포함되어 있는지 확인
+        if any(kw in section_content for kw in keywords):
+            full_text = section_title + section_content
+            
+            # 키워드에 형광펜(HTML <mark> 태그) 칠하기
+            highlighted_text = full_text
+            for kw in keywords:
+                # 대소문자 구분 없이 매칭되도록 안전하게 치환
+                highlighted_text = re.sub(f"({re.escape(kw)})", r"<mark style='background-color: #FFFFA0; color: black; font-weight: bold;'>\1</mark>", highlighted_text)
+            
+            results.append(highlighted_text.strip())
+            if len(results) >= 3:  # 검색 결과가 너무 길어지지 않게 최대 3개 조항만 출력
                 break
                 
     if results:
-        return "📄 **학교 규정집 관련 내용 검색 결과:**\n\n" + "\n".join([f"- {r}" for r in results])
+        output = "🔍 **규정집 내부 매칭된 조항 검색 결과:**\n\n"
+        for res in results:
+            # 스트림릿에서 HTML 마크업을 허용하여 형광펜 표출
+            output += f"<div style='background-color: #262730; padding: 15px; border-radius: 5px; margin-bottom: 10px; border-left: 5px solid #FF4B4B; white-space: pre-wrap;'>{res}</div>"
+        return output
     else:
-        return "🔍 규정집에서 관련 키워드를 찾지 못했습니다. 보다 정확한 단어(예: 두발, 전자기기, 복장 등)로 다시 질문해 주세요."
+        return "🔍 규정집에서 관련 조항을 찾지 못했습니다. 보다 정확한 단어(예: 두발, 전자기기, 복장, 휴대전화 등)로 다시 질문해 주세요."
 
 # 데이터 로드
 users = load_data(USER_FILE)
@@ -62,9 +86,9 @@ if "posts" not in community: community["posts"] = []
 if "polls" not in community: community["polls"] = []
 if "notice" not in community: community["notice"] = "아직 등록된 공지사항이 없습니다."
 
-# 초기 관리자 계정 생성
+# 초기 최고(마스터) 관리자 계정 생성 (role: master_admin)
 if "admin" not in users:
-    users["admin"] = {"password": "admin1234", "name": "최고관리자", "role": "admin"}
+    users["admin"] = {"password": "admin1234", "name": "최고관리자", "role": "master_admin"}
     save_data(USER_FILE, users)
 
 # 스트림릿 세션 로그인 상태 유지
@@ -99,7 +123,7 @@ if not st.session_state.logged_in:
     elif choice == "로그인":
         st.subheader("🔑 로그인")
         user_id = st.text_input("학번")
-        user_pw = st.text_input("비밀密码", type="password")
+        user_pw = st.text_input("비밀번호", type="password")
 
         if st.button("로그인"):
             if user_id in users and users[user_id]["password"] == user_pw:
@@ -115,6 +139,13 @@ if not st.session_state.logged_in:
 # --- 로그인 상태일 때 ---
 else:
     st.sidebar.markdown(f"### 👤 {st.session_state.user_name}님")
+    
+    # 등급 표시 안내
+    if st.session_state.role == "master_admin":
+        st.sidebar.caption("👑 최고 관리자 (마스터)")
+    elif st.session_state.role == "sub_admin":
+        st.sidebar.caption("🛡️ 일반 부관리자")
+        
     if st.sidebar.button("로그아웃"):
         st.session_state.logged_in = False
         st.session_state.user_id = None
@@ -122,13 +153,23 @@ else:
         st.session_state.role = "user"
         st.rerun()
 
-    # ==================== [ 관리자 마스터 패널 ] ====================
-    if st.session_state.role == "admin":
-        st.subheader("⚙️ 관리자 마스터 패널")
-        admin_menu = ["📢 공지 및 투표 등록", "💬 학생 대화 로그 확인", "🚨 커뮤니티 악성 게시글 관리"]
-        sub_choice = st.selectbox("관리 기능 선택", admin_menu)
+    # ==================== [ ⚙️ 관리자 사이드바 전용 패널 ] ====================
+    if st.session_state.role in ["master_admin", "sub_admin"]:
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("### ⚙️ 마스터 관리 메뉴")
+        
+        # 관리자 기능을 왼쪽 사이드바 창으로 완전 분리
+        admin_menu = ["📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 로그", "🔥 최다 질문 통계"]
+        
+        # 최고 관리자(master_admin)에게만 관리자 생성 메뉴 추가
+        if st.session_state.role == "master_admin":
+            admin_menu.append("➕ 부관리자 계정 생성")
+            
+        sub_choice = st.sidebar.radio("원하는 관리 기능 선택", admin_menu)
 
-        if sub_choice == "📢 공지 및 투표 등록":
+        st.subheader(f"🛠️ 관리자 모드 - {sub_choice}")
+
+        if sub_choice == "📢 공지 및 투표 관리":
             st.write("#### 1. 새로운 학교 공지사항 작성")
             new_notice = st.text_area("공지 내용 입력", value=community["notice"])
             if st.button("공지사항 업데이트"):
@@ -153,24 +194,7 @@ else:
                     save_data(COMMUNITY_FILE, community)
                     st.success("새로운 투표가 발의되었습니다!")
 
-        elif sub_choice == "💬 학생 대화 로그 확인":
-            st.write("### 💬 학생들의 질문 기록 및 통계")
-            
-            all_queries = []
-            for uid, history in chats.items():
-                for c in history: all_queries.append(c['query'])
-            
-            st.metric("🔥 총 누적 질문 개수", len(all_queries))
-
-            for uid, history in chats.items():
-                student_name = users.get(uid, {}).get("name", "알 수 없는 사용자")
-                with st.expander(f"학번: {uid} ({student_name})의 대화 기록"):
-                    for chat in history:
-                        st.write(f"**[{chat['time']}]** 질문: {chat['query']}")
-                        st.write(f"🤖 답변: {chat['answer']}")
-                        st.markdown("---")
-
-        elif sub_choice == "🚨 커뮤니티 악성 게시글 관리":
+        elif sub_choice == "🏛️ 커뮤니티 게시글 관리":
             st.write("### 🗑️ 전체 게시글 일람 및 삭제 권한")
             if not community["posts"]:
                 st.info("현재 커뮤니티에 올라온 글이 없습니다.")
@@ -183,32 +207,94 @@ else:
                         st.success("게시글이 삭제되었습니다.")
                         st.rerun()
 
-    # ==================== [ 학생 / 사용자 메인 화면 ] ====================
+        elif sub_choice == "💬 학생 질문 로그":
+            st.write("### 💬 학생별 전체 질문 기록 체크")
+            if not chats:
+                st.info("아직 학생들이 한 질문이 없습니다.")
+            else:
+                for uid, history in chats.items():
+                    student_name = users.get(uid, {}).get("name", "알 수 없는 사용자")
+                    with st.expander(f"학번: {uid} ({student_name})의 대화 기록"):
+                        for chat in history:
+                            st.write(f"**[{chat['time']}]** 질문: {chat['query']}")
+                            st.write(f"🤖 답변 요약됨")
+                            st.markdown("---")
+
+        elif sub_choice == "🔥 최다 질문 통계":
+            st.write("### 🔥 학생들이 가장 많이 검색한 키워드")
+            all_queries = []
+            for uid, history in chats.items():
+                for chat in history: 
+                    all_queries.extend(chat['query'].split())
+            
+            # 1글자짜리 단어 제외하고 빈도수 체크
+            filtered_words = [word for word in all_queries if len(word) > 1]
+            
+            if not filtered_words:
+                st.info("통계를 내기 위한 질문 데이터가 부족합니다.")
+            else:
+                # 빈도수 계산 규칙
+                word_counts = {}
+                for w in filtered_words:
+                    word_counts[w] = word_counts.get(w, 0) + 1
+                
+                sorted_words = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+                
+                st.metric("📊 총 누적 검색 단어 수", len(filtered_words))
+                st.write("#### 🔝 실시간 학생 관심 키워드 Top 5")
+                for rank, (word, count) in enumerate(sorted_words, 1):
+                    st.write(f"**{rank}위** : `{word}` ({count}회 검색됨)")
+
+        elif sub_choice == "➕ 부관리자 계정 생성":
+            st.write("### 🛡️ 일반 부관리자 계정 발급 전용")
+            st.caption("여기서 생성된 계정은 관리 기능을 똑같이 사용할 수 있으나, 또 다른 관리자를 생성할 권한은 제한됩니다.")
+            
+            sub_admin_id = st.text_input("부관리자 ID (로그인용 아이디)")
+            sub_admin_name = st.text_input("부관리자 이름 (표시용)")
+            sub_admin_pw = st.text_input("부관리자 비밀번호", type="password")
+            
+            if st.button("부관리자 생성하기"):
+                if not sub_admin_id or not sub_admin_name or not sub_admin_pw:
+                    st.error("모든 정보를 입력해 주세요.")
+                elif sub_admin_id in users:
+                    st.error("이미 사용 중인 아이디입니다.")
+                else:
+                    users[sub_admin_id] = {
+                        "password": sub_admin_pw,
+                        "name": sub_admin_name,
+                        "role": "sub_admin" # 부관리자 등급 부여
+                    }
+                    save_data(USER_FILE, users)
+                    st.success(f"🎉 {sub_admin_name} 부관리자 계정이 성공적으로 생성되었습니다!")
+
+    # ==================== [ 🧑‍🎓 학생 / 사용자 메인 화면 ] ====================
     else:
-        # st.notice 에러 유발 구역을 st.info로 안전하게 교체 완료!
         st.info(f"📢 **학교 공지사항:** {community['notice']}")
         
         tab1, tab2, tab3 = st.tabs(["🤖 규정 질문 챗봇", "🏛️ 학생 소통 커뮤니티", "📊 실시간 투표존"])
 
         # ---- 탭 1: 규정 질문 챗봇 ----
         with tab1:
-            st.write("### 🤖 학교 규정에 대해 물어보세요!")
+            st.write("### 🤖 학교 생활 규정집 검색기")
+            st.caption("질문 단어를 입력하고 버튼을 누르면 해당 키워드가 들어있는 정확한 '조·항'을 찾아 형광펜 표시해 줍니다.")
             st.info("🔥 **학생들이 가장 많이 찾은 단어** : `두발`, `휴대폰`, `지각`, `복장`")
             
-            user_query = st.text_input("질문을 입력하세요 (예: 두발 규정 알려줘):", key="chatbot_query")
+            user_query = st.text_input("궁금한 규정 키워드를 입력하세요 (예: 두발 규정):", key="chatbot_query")
             
-            if st.button("질문하기"):
+            if st.button("🔎 규정집 실시간 검색하기"):
                 if user_query:
-                    answer = search_pdf(user_query, pdf_content)
-                    st.write(answer)
+                    # 형광펜 및 구조화 분할 검색 작동
+                    answer_html = search_pdf_with_highlight(user_query, pdf_content)
+                    st.markdown(answer_html, unsafe_allow_html=True) # HTML 형광펜 출력을 위해 허용
 
+                    # 로그 기록용 저장
                     if st.session_state.user_id not in chats:
                         chats[st.session_state.user_id] = []
                     
                     chats[st.session_state.user_id].append({
                         "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
                         "query": user_query,
-                        "answer": answer
+                        "answer": "검색 완료(HTML 표출)"
                     })
                     save_data(CHAT_FILE, chats)
 
