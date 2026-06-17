@@ -62,7 +62,6 @@ def search_pdf_with_highlight(query, pdf_text):
     if results:
         output = "🔍 **규정집 내부 매칭된 조항 검색 결과:**\n\n"
         for res in results:
-            # 화이트/다크 모드 범용 스타일 (밝은 회색 바탕 + 짙은 네이비색 글씨 고정)
             output += f"<div style='background-color: #F8F9FA; color: #1E293B; padding: 18px; border-radius: 8px; margin-bottom: 12px; border-left: 5px solid #FF4B4B; white-space: pre-wrap; font-size: 15px; line-height: 1.6;'>{res}</div>"
         return output
     else:
@@ -79,9 +78,10 @@ if "posts" not in community: community["posts"] = []
 if "polls" not in community: community["polls"] = []
 if "notice" not in community: community["notice"] = "아직 등록된 공지사항이 없습니다."
 
-# [새출발 관리자 세팅] 기존 계정 엉킴 방지를 위해 시스템 시작 시 강제 동기화
-users["admin"] = {"password": "admin1234", "name": "최고관리자", "role": "master_admin"}
-save_data(USER_FILE, users)
+# [새출발 관리자 세팅] 강제 동기화
+if "admin" not in users or users["admin"].get("role") != "master_admin":
+    users["admin"] = {"password": "admin1234", "name": "최고관리자", "role": "master_admin"}
+    save_data(USER_FILE, users)
 
 # 스트림릿 앱 상태 초기화
 if "logged_in" not in st.session_state:
@@ -120,13 +120,11 @@ if not st.session_state.logged_in:
         user_pw = st.text_input("비밀번호", type="password")
 
         if st.button("로그인"):
-            # 새로 빌드한 직관적인 등급 부여 로직
             if user_id in users and users[user_id]["password"] == user_pw:
                 st.session_state.logged_in = True
                 st.session_state.user_id = user_id
                 st.session_state.user_name = users[user_id]["name"]
                 
-                # ID 조건에 따라 확실하게 룰 배정
                 if user_id == "admin":
                     st.session_state.role = "master_admin"
                 elif users[user_id].get("role") == "sub_admin":
@@ -141,7 +139,6 @@ if not st.session_state.logged_in:
 
 # --- 2. 로그인 완료 상태일 때 ---
 else:
-    # 왼쪽 사이드바 프로필 표시 영역
     st.sidebar.markdown(f"### 👤 {st.session_state.user_name}님")
     
     if st.session_state.role == "master_admin":
@@ -158,15 +155,14 @@ else:
         st.session_state.role = "user"
         st.rerun()
 
-    # ==================== [[ 새로 만든 관리자 전용 사이드바 창 ]] ====================
+    # ==================== [[ ⚙️ 관리자 전용 사이드바 창 ]] ====================
     if st.session_state.role in ["master_admin", "sub_admin"]:
         st.sidebar.markdown("---")
         st.sidebar.markdown("### 🛠️ 관리자 전용 메뉴")
         
-        # 관리자 기능 목록 정의
-        admin_menu = ["📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 로그", "🔥 최다 질문 통계"]
+        # [업데이트] '🔍 학생 계정 관리' 메뉴 추가
+        admin_menu = ["🔍 학생 계정 관리", "📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 로그", "🔥 최다 질문 통계"]
         
-        # 최고 마스터 관리자에게만 추가 권한 메뉴 제공
         if st.session_state.role == "master_admin":
             admin_menu.append("➕ 부관리자 계정 생성")
             
@@ -174,20 +170,73 @@ else:
 
         st.subheader(f"⚙️ 관리 제어판 -> {sub_choice}")
 
-        if sub_choice == "📢 공지 및 투표 관리":
-            st.write("#### 1. 대시보드 공지사항 변경")
+        # ---- [신규 기능] 🔍 학생 계정 관리 패널 ----
+        if sub_choice == "🔍 학생 계정 관리":
+            st.write("#### 👤 학생 정보 실시간 검색 및 수정/삭제")
+            st.caption("비밀번호를 분실한 학생의 학번을 입력해 찾거나 정보를 변경할 수 있습니다.")
+            
+            # 검색창 만들기
+            search_uid = st.text_input("🔍 학번 입력 검색 (빈칸으로 두면 전체 조회)", placeholder="예: 10101")
+            
+            st.markdown("---")
+            
+            # 검색 조건에 맞춰 필터링 (관리자 본인 계정들은 노출 제외하여 가독성 확보)
+            target_users = {}
+            if search_uid:
+                if search_uid in users and users[search_uid].get("role", "user") == "user":
+                    target_users[search_uid] = users[search_uid]
+                else:
+                    st.info("검색된 일반 학생 계정이 없습니다.")
+            else:
+                # 전체 일반 학생 리스트만 바인딩
+                target_users = {k: v for k, v in users.items() if v.get("role", "user") == "user"}
+
+            if target_users:
+                for u_id, u_info in target_users.items():
+                    with st.expander(f"📋 학번: {u_id} | 이름: {u_info['name']} 학생 계정 설정"):
+                        # 실시간 조회 및 수정을 위한 폼 구성
+                        edit_name = st.text_input(f"이름 수정 ({u_id})", value=u_info['name'], key=f"name_{u_id}")
+                        edit_pw = st.text_input(f"비밀번호 조회/수정 ({u_id})", value=u_info['password'], key=f"pw_{u_id}")
+                        
+                        col_u1, col_u2 = st.columns(2)
+                        with col_u1:
+                            if st.button(f"💾 {u_id} 정보 수정 저장", key=f"save_u_{u_id}"):
+                                users[u_id]['name'] = edit_name
+                                users[u_id]['password'] = edit_pw
+                                save_data(USER_FILE, users)
+                                st.success(f"{u_id} 학생의 정보가 업데이트되었습니다!")
+                                st.rerun()
+                        with col_u2:
+                            if st.button(f"🗑️ {u_id} 계정 영구 삭제", key=f"del_u_{u_id}"):
+                                users.pop(u_id)
+                                save_data(USER_FILE, users)
+                                st.warning(f"{u_id} 학생의 계정이 삭제되었습니다.")
+                                st.rerun()
+
+        elif sub_choice == "📢 공지 및 투표 관리":
+            st.write("#### 1. 대시보드 공지사항 제어")
             new_notice = st.text_area("수정할 공지사항 내용", value=community["notice"])
-            if st.button("공지사항 수정 완료"):
-                community["notice"] = new_notice
-                save_data(COMMUNITY_FILE, community)
-                st.success("공지사항이 업데이트되었습니다.")
+            col_n1, col_n2 = st.columns(2)
+            with col_n1:
+                if st.button("📢 공지사항 업데이트", use_container_width=True):
+                    community["notice"] = new_notice
+                    save_data(COMMUNITY_FILE, community)
+                    st.success("공지사항이 업데이트되었습니다.")
+                    st.rerun()
+            with col_n2:
+                if st.button("🗑️ 공지사항 내용 완전 삭제", use_container_width=True):
+                    community["notice"] = "아직 등록된 공지사항이 없습니다."
+                    save_data(COMMUNITY_FILE, community)
+                    st.warning("공지사항이 삭제 및 초기화되었습니다.")
+                    st.rerun()
 
             st.write("---")
-            st.write("#### 2. 실시간 학생 투표 개설")
+            st.write("#### 2. 실시간 학생 투표 개설 및 삭제")
+            st.markdown("**[새 투표 등록하기]**")
             poll_title = st.text_input("투표 안건 주제 입력")
             poll_opt1 = st.text_input("선택지 보기 1")
             poll_opt2 = st.text_input("선택지 보기 2")
-            if st.button("투표 공식 발의"):
+            if st.button("🗳️ 투표 공식 발의"):
                 if poll_title and poll_opt1 and poll_opt2:
                     community["polls"].append({
                         "id": len(community["polls"]),
@@ -198,6 +247,20 @@ else:
                     })
                     save_data(COMMUNITY_FILE, community)
                     st.success("새로운 학생 투표가 등록되었습니다.")
+                    st.rerun()
+            
+            st.write("---")
+            st.markdown("**[현재 진행 중인 투표 목록 및 삭제]**")
+            if not community["polls"]:
+                st.info("현재 개설된 투표가 없습니다.")
+            else:
+                for p_idx, poll in enumerate(community["polls"]):
+                    st.write(f"📊 **주제:** {poll['title']} (참여수: {len(poll['voted_users'])}명)")
+                    if st.button(f"❌ '{poll['title'][:10]}...' 투표 삭제", key=f"del_poll_{p_idx}"):
+                        community["polls"].pop(p_idx)
+                        save_data(COMMUNITY_FILE, community)
+                        st.success("투표가 성공적으로 파기되었습니다.")
+                        st.rerun()
 
         elif sub_choice == "🏛️ 커뮤니티 게시글 관리":
             st.write("#### 🚨 학생 커뮤니티 전체 게시물 관리")
@@ -245,7 +308,6 @@ else:
 
         elif sub_choice == "➕ 부관리자 계정 생성":
             st.write("#### 🛡️ 신규 부관리자(Sub Admin) 계정 발급")
-            st.caption("여기서 생성되는 관리자는 생성 권한을 제외한 모든 투표/게시글 관리/로그 보기 기능 권한을 공유합니다.")
             
             sub_id = st.text_input("부관리자용 로그인 ID")
             sub_name = st.text_input("부관리자 담당자 이름")
