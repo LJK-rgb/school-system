@@ -9,7 +9,7 @@ import re
 USER_FILE = "users.json"
 CHAT_FILE = "chats.json"
 COMMUNITY_FILE = "community.json"
-PDF_FILE = "2025. 학생생활규정.pdf"
+PDF_FILE = "2025. HTML_규정집.pdf" # 사용 중인 파일명에 맞게 유지
 
 # --- 데이터 입출력 함수 ---
 def load_data(filepath):
@@ -73,12 +73,10 @@ chats = load_data(CHAT_FILE)
 community = load_data(COMMUNITY_FILE)
 pdf_content = load_pdf_text(PDF_FILE)
 
-# 초기 커뮤니티 및 공지/투표 데이터 구조 고도화 세팅
+# 데이터 구조 초기화 및 방어 코드
 if "posts" not in community: community["posts"] = []
 if "polls" not in community: community["polls"] = []
 if "notice" not in community: community["notice"] = "아직 등록된 공지사항이 없습니다."
-
-# [신규 기능 연동] 공지사항용 공감 및 댓글 저장소 초기화
 if "notice_likes" not in community: community["notice_likes"] = []
 if "notice_comments" not in community: community["notice_comments"] = []
 
@@ -97,7 +95,7 @@ if "logged_in" not in st.session_state:
 # --- 메인 화면 타이틀 ---
 st.title("🏫 신입생 학교생활 가이드 & 커뮤니티")
 
-# --- 1. 로그아웃 상태일 때 (메인 화면 중앙에 로그인/회원가입 탭 배치) ---
+# --- 1. 로그아웃 상태일 때 ---
 if not st.session_state.logged_in:
     st.info("👋 안녕하세요! 서비스를 이용하시려면 로그인이나 회원가입을 진행해 주세요.")
     
@@ -183,8 +181,6 @@ else:
         # ---- 🔍 전체 계정 관리 패널 ----
         if sub_choice == "🔍 전체 계정 관리":
             st.write("#### 👤 교내 멤버 정보 검색 및 수정/삭제")
-            st.caption("학생들의 학번이나 부관리자 선생님의 ID를 입력하면 비밀번호를 실시간으로 찾거나 정보를 바꿀 수 있습니다.")
-            
             search_uid = st.text_input("🔍 학번 또는 부관리자 ID 입력 검색 (빈칸이면 전체 조회)", placeholder="예: 10101 또는 교사ID")
             st.markdown("---")
             
@@ -243,12 +239,11 @@ else:
                     community["notice_likes"] = []
                     community["notice_comments"] = []
                     save_data(COMMUNITY_FILE, community)
-                    st.warning("공지사항과 공지에 쌓였던 공감/댓글이 완전 초기화되었습니다.")
+                    st.warning("공지사항이 초기화되었습니다.")
                     st.rerun()
 
             st.write("---")
             st.write("#### 2. 실시간 학생 투표 개설, 마감 및 삭제")
-            st.markdown("**[새 투표 등록하기]**")
             poll_title = st.text_input("투표 안건 주제 입력")
             poll_opt1 = st.text_input("선택지 보기 1")
             poll_opt2 = st.text_input("선택지 보기 2")
@@ -260,9 +255,9 @@ else:
                         "options": [poll_opt1, poll_opt2],
                         "votes": {poll_opt1: 0, poll_opt2: 0},
                         "voted_users": [],
-                        "is_closed": False,      # [신규] 마감 상태 플래그
-                        "likes": [],             # [신규] 투표 글 공감 리스트
-                        "comments": []           # [신규] 투표 글 댓글 리스트
+                        "is_closed": False,
+                        "likes": [],
+                        "comments": []
                     })
                     save_data(COMMUNITY_FILE, community)
                     st.success("새로운 학생 투표가 등록되었습니다.")
@@ -279,34 +274,44 @@ else:
                     
                     col_p1, col_p2 = st.columns(2)
                     with col_p1:
-                        # [신규 기능] 투표 마감 제어 버튼
                         if not poll.get("is_closed", False):
                             if st.button(f"🔒 '{poll['title'][:6]}...' 마감하기", key=f"close_poll_{p_idx}", use_container_width=True):
                                 community["polls"][p_idx]["is_closed"] = True
                                 save_data(COMMUNITY_FILE, community)
-                                st.success("해당 투표가 실시간으로 마감 처리되었습니다.")
+                                st.success("투표가 마감 처리되었습니다.")
                                 st.rerun()
                         else:
-                            st.caption("이미 마감된 투표 안건입니다.")
+                            st.caption("이미 마감된 투표입니다.")
                     with col_p2:
                         if st.button(f"🗑️ '{poll['title'][:6]}...' 완전 삭제", key=f"del_poll_{p_idx}", use_container_width=True):
                             community["polls"].pop(p_idx)
                             save_data(COMMUNITY_FILE, community)
-                            st.success("투표가 성공적으로 삭제되었습니다.")
+                            st.success("투표가 삭제되었습니다.")
                             st.rerun()
 
+        # ---- 🏛️ [기능 수정] 커뮤니티 게시글 개별 타겟팅 삭제 패널 ----
         elif sub_choice == "🏛️ 커뮤니티 게시글 관리":
             st.write("#### 🚨 학생 커뮤니티 전체 게시물 관리")
+            st.caption("문제가 있는 특정 게시글을 확인하고 하단의 삭제 버튼을 누르면 해당 게시글만 안전하게 소멸합니다.")
+            
             if not community["posts"]:
                 st.info("현재 대나무숲에 등록된 글이 없습니다.")
             else:
+                # 리스트를 돌면서 인덱스 꼬임 방지를 위해 UI 내부 카드 레이아웃 구성
                 for idx, post in enumerate(community["posts"]):
-                    st.write(f"**[{post['author']}]** {post['content']} (❤️ {len(post['likes'])})")
-                    if st.button(f"불건전한 게시글 삭제", key=f"del_p_{idx}"):
-                        community["posts"].pop(idx)
-                        save_data(COMMUNITY_FILE, community)
-                        st.success("해당 게시물이 안전하게 삭제되었습니다.")
-                        st.rerun()
+                    # 보기 편하게 박스 형태로 게시글 렌더링
+                    with st.container():
+                        st.markdown(f"✍️ **작성자:** `{post['author']}` | ❤️ 공감: {len(post['likes'])}개 | 💬 댓글: {len(post['comments'])}개")
+                        st.info(post["content"])
+                        
+                        # 특정 게시물 '옆' 혹은 바로 하단에 단독 삭제 버튼 배치
+                        if st.button(f"🗑️ 위 게시글 내용 확정 삭제", key=f"del_target_post_{idx}", use_container_width=True):
+                            # 정확히 선택한 인덱스의 게시글 1개만 팝(Pop)하여 제거
+                            removed_post = community["posts"].pop(idx)
+                            save_data(COMMUNITY_FILE, community)
+                            st.warning(f" 선택하신 [{removed_post['author']}]님의 게시글이 실시간으로 영구 삭제되었습니다.")
+                            st.rerun()
+                        st.markdown("<hr style='margin: 8px 0 24px 0; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
         elif sub_choice == "💬 학생 질문 로그":
             st.write("#### 📋 학생별 규정집 실시간 질문 로그")
@@ -318,7 +323,6 @@ else:
                     with st.expander(f"👤 학번: {uid} ({student_name})의 검색 기록"):
                         for chat in history:
                             st.write(f"**[{chat['time']}]** 입력어: `{chat['query']}`")
-                            st.markdown("---")
 
         elif sub_choice == "🔥 최다 질문 통계":
             st.write("#### 📊 학생들의 최고 관심 규정 키워드")
@@ -353,14 +357,12 @@ else:
                 else:
                     users[sub_id] = {"password": sub_pw, "name": sub_name, "role": "sub_admin"}
                     save_data(USER_FILE, users)
-                    st.success(f"🎉 {sub_name} 부관리자 계정이 성공적으로 활성화되었습니다!")
+                    st.success(f"🎉 {sub_name} 부관리자 계정이 활성화되었습니다!")
 
     # ==================== [[ 학생 / 사용자 전용 일반 메인 화면 ]] ====================
     else:
-        # ---- 📢 [기능 강화] 공지사항 대시보드 + 공감/댓글 피드백 시스템 ----
         st.info(f"📢 **학교 공지사항:** {community['notice']}")
         
-        # 공지사항 피드백 Expander
         with st.expander(f"💬 공지사항 반응 남기기 (❤️ {len(community['notice_likes'])} | 댓글 {len(community['notice_comments'])}개)"):
             col_n_like, _ = st.columns([1, 4])
             with col_n_like:
@@ -373,11 +375,9 @@ else:
                     save_data(COMMUNITY_FILE, community)
                     st.rerun()
             
-            # 공지사항 댓글 출력
             for n_cmt in community["notice_comments"]:
                 st.write(f"↳ **{n_cmt['author']}**: {n_cmt['text']}")
             
-            # 공지사항 댓글 작성 양식
             with st.form("notice_comment_form", clear_on_submit=True):
                 n_comment_text = st.text_input("공지사항에 댓글 남기기", placeholder="공지 내용을 확인했다면 댓글을 달아주세요.")
                 if st.form_submit_button("공지 댓글 등록"):
@@ -472,23 +472,20 @@ else:
                                     st.rerun()
                     st.markdown("---")
 
-        # ---- 탭 3: [기능 전면 개편] 실시간 투표 광장 (마감 통제 및 공감/댓글 추가) ----
+        # ---- 탭 3: 실시간 투표존 ----
         with tab3:
             st.write("### 📊 실시간 학생 투표광장")
             if not community["polls"]:
                 st.info("현재 진행 중인 학생 투표가 없습니다. 관리자의 새로운 투표를 기다려주세요!")
             else:
                 for p_idx, poll in enumerate(community["polls"]):
-                    # 하위 호환성 예외 처리 (기존 데이터 구조 방어용)
                     if "is_closed" not in poll: poll["is_closed"] = False
                     if "likes" not in poll: poll["likes"] = []
                     if "comments" not in poll: poll["comments"] = []
                     
                     is_closed = poll["is_closed"]
-                    
                     st.write(f"#### ❓ 주제: {poll['title']}")
                     
-                    # 1. 투표 폼 처리 (마감되었으면 투표 행위 차단)
                     if is_closed:
                         st.error("📥 본 투표는 관리자에 의해 마감되었습니다. 더 이상 투표를 제출하거나 수정할 수 없습니다.")
                         st.markdown("**📊 최종 투표 집계 결과:**")
@@ -508,11 +505,9 @@ else:
                                 st.success("투표가 성공적으로 반영되었습니다!")
                                 st.rerun()
                     
-                    # 2. [추가 기능] 투표 안건 자체에 대한 공감 및 댓글 시스템
                     col_pl, _ = st.columns([1, 4])
                     with col_pl:
                         p_like_label = f"❤️ {len(poll['likes'])}"
-                        # 마감 상태이면 공감 버튼 비활성화(disabled=True)
                         if st.button(p_like_label, key=f"poll_like_{p_idx}", disabled=is_closed):
                             if st.session_state.user_id in poll["likes"]:
                                 poll["likes"].remove(st.session_state.user_id)
@@ -525,7 +520,6 @@ else:
                         for p_comment in poll["comments"]:
                             st.write(f"↳ **{p_comment['author']}**: {p_comment['text']}")
                         
-                        # 마감 상태이면 댓글 입력 폼 숨기기 혹은 차단
                         if is_closed:
                             st.caption("🔒 투표가 마감되어 댓글 작성이 제한됩니다.")
                         else:
