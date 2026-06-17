@@ -176,7 +176,6 @@ else:
         
         admin_menu = ["🔍 전체 계정 관리", "📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 로그", "🔥 최다 질문 통계"]
         
-        # 일반 관리자(sub_admin)에게만 학생용 커뮤니티/투표 모니터링 메뉴 추가
         if st.session_state.role == "sub_admin":
             admin_menu.append("🏛️ 학생 커뮤니티 보기")
             admin_menu.append("📊 실시간 투표존 보기")
@@ -303,10 +302,10 @@ else:
                             st.success("투표가 삭제되었습니다.")
                             st.rerun()
 
-        # ---- 🏛️ 커뮤니티 게시글 관리 패널 ----
+        # ---- 🏛️ 커뮤니티 게시글 관리 패널 (댓글/공감 삭제 기능 강화) ----
         elif sub_choice == "🏛️ 커뮤니티 게시글 관리":
             st.write("#### 🚨 학생 커뮤니티 전체 게시물 관리")
-            st.caption("문제가 있는 특정 게시글을 확인하고 하단의 삭제 버튼을 누르면 해당 게시글만 안전하게 소멸합니다.")
+            st.caption("게시글 파기뿐만 아니라 특정 댓글 삭제 및 악의적인 공감수(좋아요) 강제 초기화 제어가 가능합니다.")
             
             if not community["posts"]:
                 st.info("현재 대나무숲에 등록된 글이 없습니다.")
@@ -316,12 +315,35 @@ else:
                         st.markdown(f"✍️ **작성자:** `{post['author']}` | ❤️ 공감: {len(post['likes'])}개 | 💬 댓글: {len(post['comments'])}개")
                         st.info(post["content"])
                         
-                        if st.button(f"🗑️ 위 게시글 내용 확정 삭제", key=f"del_target_post_{idx}", use_container_width=True):
-                            removed_post = community["posts"].pop(idx)
-                            save_data(COMMUNITY_FILE, community)
-                            st.warning(f" 선택하신 [{removed_post['author']}]님의 게시글이 실시간으로 영구 삭제되었습니다.")
-                            st.rerun()
-                        st.markdown("<hr style='margin: 8px 0 24px 0; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
+                        col_adm1, col_adm2 = st.columns(2)
+                        with col_adm1:
+                            if st.button(f"🗑️ 게시글 내용 전면 삭제", key=f"del_post_{idx}", use_container_width=True):
+                                removed_post = community["posts"].pop(idx)
+                                save_data(COMMUNITY_FILE, community)
+                                st.warning(f"[{removed_post['author']}]님의 글이 삭제되었습니다.")
+                                st.rerun()
+                        with col_adm2:
+                            if st.button(f"❤️ 공감 수 초기화 (0으로 세팅)", key=f"reset_likes_{idx}", use_container_width=True):
+                                community["posts"][idx]["likes"] = []
+                                save_data(COMMUNITY_FILE, community)
+                                st.success("해당 게시글의 공감 수가 초기화되었습니다.")
+                                st.rerun()
+                        
+                        # 관리자 전용 댓글 세부 관리 패널
+                        if post["comments"]:
+                            st.markdown("<p style='font-size:13px; font-weight:bold; color:#555; margin-top:8px;'>▼ 댓글 내역 리스트 제어</p>", unsafe_allow_html=True)
+                            for c_idx, comment in enumerate(post["comments"]):
+                                c_col1, c_col2 = st.columns([4, 1])
+                                with c_col1:
+                                    st.caption(f"↳ **{comment['author']}**: {comment['text']}")
+                                with c_col2:
+                                    if st.button("🗑️ 댓글 삭제", key=f"del_cmt_{idx}_{c_idx}", size="small"):
+                                        community["posts"][idx]["comments"].pop(c_idx)
+                                        save_data(COMMUNITY_FILE, community)
+                                        st.warning("선택한 댓글이 삭제되었습니다.")
+                                        st.rerun()
+                                        
+                        st.markdown("<hr style='margin: 12px 0 24px 0; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
 
         elif sub_choice == "💬 학생 질문 로그":
             st.write("#### 📋 학생별 규정집 실시간 질문 로그")
@@ -353,7 +375,6 @@ else:
                 for rank, (word, cnt) in enumerate(top_five, 1):
                     st.write(f"🥇 **{rank}위** : `{word}` (총 {cnt}회 조회)")
 
-        # ---- [추가] 일반 관리자 등급용 커뮤니티 모니터링 뷰 ----
         elif sub_choice == "🏛️ 학생 커뮤니티 보기":
             st.write("### 🏛️ 익명/실명 학생 대나무숲 (일반 관리자 모니터링 뷰)")
             if not community["posts"]:
@@ -367,7 +388,6 @@ else:
                         st.write(f"↳ **{comment['author']}**: {comment['text']}")
                     st.markdown("---")
 
-        # ---- [추가] 일반 관리자 등급용 투표 모니터링 뷰 ----
         elif sub_choice == "📊 실시간 투표존 보기":
             st.write("### 📊 실시간 학생 투표광장 (일반 관리자 모니터링 뷰)")
             if not community["polls"]:
