@@ -97,7 +97,6 @@ st.title("🏫 신입생 학교생활 가이드 & 커뮤니티")
 if not st.session_state.logged_in:
     st.info("👋 안녕하세요! 서비스를 이용하시려면 로그인이나 회원가입을 진행해 주세요.")
     
-    # 사이드바 메뉴 대신 메인 중앙에 탭 배치로 가시성 극대화!
     auth_tab1, auth_tab2 = st.tabs(["🔑 로그인", "📝 회원가입"])
 
     with auth_tab1:
@@ -125,15 +124,21 @@ if not st.session_state.logged_in:
 
     with auth_tab2:
         st.subheader("회원가입")
-        new_id = st.text_input("학번 (아이디로 사용)", placeholder="예: 10101", key="join_id_input")
-        new_name = st.text_input("이름", key="join_name_input")
-        new_pw = st.text_input("비밀번호", type="password", key="join_pw_input")
+        new_id = st.text_input("학번 (숫자만 입력 가능)", placeholder="예: 10101", key="join_id_input")
+        new_name = st.text_input("이름 (한글 3~4글자, 초성 불가)", placeholder="예: 홍길동", key="join_name_input")
+        new_pw = st.text_input("비밀번호 (영문+숫자+특수문자 필수)", type="password", placeholder="특수문자: !@#$%^&*_", key="join_pw_input")
         
         if st.button("가입하기", use_container_width=True):
             if not new_id or not new_name or not new_pw: 
-                st.error("모든 칸을 입력해주세요.")
+                st.error("❌ 모든 칸을 입력해주세요.")
+            elif not re.match(r"^\d+$", new_id):
+                st.error("❌ 학번 칸에는 숫자만 입력할 수 있습니다.")
+            elif not re.match(r"^[가-힣]{3,4}$", new_name):
+                st.error("❌ 이름은 공백이나 초성 없이 정확히 한글 3~4글자로 입력해 주세요.")
+            elif not (re.search(r"[a-zA-Z]", new_pw) and re.search(r"\d", new_pw) and re.search(r"[!@#\$%\^&\*_]", new_pw)):
+                st.error("❌ 비밀번호는 영문자, 숫자, 특수문자(!@#$%^&*_)가 각각 최소 1개 이상씩 포함되어야 합니다.")
             elif new_id in users or new_id == "admin": 
-                st.error("이미 존재하는 학번이거나 사용할 수 없는 ID입니다.")
+                st.error("❌ 이미 존재하는 학번이거나 사용할 수 없는 ID입니다.")
             else:
                 users[new_id] = {"password": new_pw, "name": new_name, "role": "user"}
                 save_data(USER_FILE, users)
@@ -162,7 +167,8 @@ else:
         st.sidebar.markdown("---")
         st.sidebar.markdown("### 🛠️ 관리자 전용 메뉴")
         
-        admin_menu = ["🔍 학생 계정 관리", "📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 로그", "🔥 최다 질문 통계"]
+        # [업데이트] 통합 계정 관리 메뉴명으로 변경
+        admin_menu = ["🔍 전체 계정 관리", "📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 로그", "🔥 최다 질문 통계"]
         
         if st.session_state.role == "master_admin":
             admin_menu.append("➕ 부관리자 계정 생성")
@@ -171,26 +177,37 @@ else:
 
         st.subheader(f"⚙️ 관리 제어판 -> {sub_choice}")
 
-        # ---- 🔍 학생 계정 관리 패널 ----
-        if sub_choice == "🔍 학생 계정 관리":
-            st.write("#### 👤 학생 정보 실시간 검색 및 수정/삭제")
-            st.caption("비밀번호를 분실한 학생의 학번을 입력해 찾거나 정보를 변경할 수 있습니다.")
+        # ---- 🔍 전체 계정 관리 패널 (학생 및 부관리자 통합 제어) ----
+        if sub_choice == "🔍 전체 계정 관리":
+            st.write("#### 👤 교내 멤버 정보 검색 및 수정/삭제")
+            st.caption("학생들의 학번이나 부관리자 선생님의 ID를 입력하면 비밀번호를 실시간으로 찾거나 정보를 바꿀 수 있습니다.")
             
-            search_uid = st.text_input("🔍 학번 입력 검색 (빈칸으로 두면 전체 조회)", placeholder="예: 10101")
+            search_uid = st.text_input("🔍 학번 또는 부관리자 ID 입력 검색 (빈칸이면 전체 조회)", placeholder="예: 10101 또는 교사ID")
             st.markdown("---")
             
             target_users = {}
             if search_uid:
-                if search_uid in users and users[search_uid].get("role", "user") == "user":
+                if search_uid in users and users[search_uid].get("role") != "master_admin":
                     target_users[search_uid] = users[search_uid]
                 else:
-                    st.info("검색된 일반 학생 계정이 없습니다.")
+                    st.info("검색된 대상 계정이 없거나 최고관리자 계정은 수정할 수 없습니다.")
             else:
-                target_users = {k: v for k, v in users.items() if v.get("role", "user") == "user"}
+                # 최고관리자(admin) 본인을 제외한 전원 필터링
+                target_users = {k: v for k, v in users.items() if v.get("role") != "master_admin"}
 
             if target_users:
                 for u_id, u_info in target_users.items():
-                    with st.expander(f"📋 학번: {u_id} | 이름: {u_info['name']} 학생 계정 설정"):
+                    u_role = u_info.get("role", "user")
+                    # 사용자 유형에 따른 배지 표시
+                    role_badge = "🛡️ [부관리자]" if u_role == "sub_admin" else "🎓 [일반학생]"
+                    
+                    # 부관리자 계정은 오직 '최고 관리자'만 제어 가능하도록 안전잠금 장치 추가
+                    if u_role == "sub_admin" and st.session_state.role != "master_admin":
+                        with st.expander(f"{role_badge} ID: {u_id} | 이름: {u_info['name']}"):
+                            st.warning("🔒 부관리자 계정 정보는 최고관리자(master_admin)만 조회 및 수정할 수 있습니다.")
+                        continue
+                        
+                    with st.expander(f"{role_badge} ID/학번: {u_id} | 이름: {u_info['name']} 계정 설정"):
                         edit_name = st.text_input(f"이름 수정 ({u_id})", value=u_info['name'], key=f"name_{u_id}")
                         edit_pw = st.text_input(f"비밀번호 조회/수정 ({u_id})", value=u_info['password'], key=f"pw_{u_id}")
                         
@@ -200,13 +217,13 @@ else:
                                 users[u_id]['name'] = edit_name
                                 users[u_id]['password'] = edit_pw
                                 save_data(USER_FILE, users)
-                                st.success(f"{u_id} 학생의 정보가 업데이트되었습니다!")
+                                st.success(f"{u_id} 계정 정보가 성공적으로 변경되었습니다!")
                                 st.rerun()
                         with col_u2:
-                            if st.button(f"🗑️ {u_id} 계정 영구 삭제", key=f"del_u_{u_id}"):
+                            if st.button(f"🗑️ {u_id} 계정 권한 회수 및 삭제", key=f"del_u_{u_id}"):
                                 users.pop(u_id)
                                 save_data(USER_FILE, users)
-                                st.warning(f"{u_id} 학생의 계정이 삭제되었습니다.")
+                                st.warning(f"{u_id} 계정이 파기되었습니다.")
                                 st.rerun()
 
         elif sub_choice == "📢 공지 및 투표 관리":
