@@ -11,6 +11,16 @@ CHAT_FILE = "chats.json"
 COMMUNITY_FILE = "community.json"
 PDF_FILE = "2025. 학생생활규정.pdf"
 
+# --- [관리자 기능] 기본 금지어 리스트 설정 ---
+BAD_WORDS = ["바보", "멍청이", "지랄", "존나", "개새끼", "시발", "새끼", " 미친"]
+
+def check_bad_words(text):
+    """텍스트에 금지어가 포함되어 있는지 확인하는 함수"""
+    for word in BAD_WORDS:
+        if word in text:
+            return False, word
+    return True, ""
+
 # --- 데이터 입출력 함수 ---
 def load_data(filepath):
     if os.path.exists(filepath):
@@ -238,12 +248,17 @@ else:
             col_n1, col_n2 = st.columns(2)
             with col_n1:
                 if st.button("📢 공지사항 업데이트", use_container_width=True):
-                    community["notice"] = new_notice
-                    community["notice_author"] = st.session_state.user_name
-                    community["notice_time"] = datetime.now().strftime("%Y-%m-%d %H:%M")
-                    save_data(COMMUNITY_FILE, community)
-                    st.success("공지사항이 새로운 작성자 정보와 함께 업데이트되었습니다.")
-                    st.rerun()
+                    # 공지사항 내용 금지어 체크
+                    is_clean, bad_w = check_bad_words(new_notice)
+                    if not is_clean:
+                        st.error(f"❌ 공지사항에 부적절한 단어({bad_w})가 포함되어 등록할 수 없습니다.")
+                    else:
+                        community["notice"] = new_notice
+                        community["notice_author"] = st.session_state.user_name
+                        community["notice_time"] = datetime.now().strftime("%Y-%m-%d %H:%M")
+                        save_data(COMMUNITY_FILE, community)
+                        st.success("공지사항이 새로운 작성자 정보와 함께 업데이트되었습니다.")
+                        st.rerun()
             with col_n2:
                 if st.button("🗑️ 공지사항 및 피드백 전체 초기화", use_container_width=True):
                     community["notice"] = "아직 등록된 공지사항이 없습니다."
@@ -302,7 +317,7 @@ else:
                             st.success("투표가 삭제되었습니다.")
                             st.rerun()
 
-        # ---- 🏛️ 커뮤니티 게시글 관리 패널 (에러 유발 속성 수정 완료) ----
+        # ---- 🏛️ 커뮤니티 게시글 관리 패널 ----
         elif sub_choice == "🏛️ 커뮤니티 게시글 관리":
             st.write("#### 🚨 학생 커뮤니티 전체 게시물 관리")
             st.caption("게시글 파기뿐만 아니라 특정 댓글 삭제 및 악의적인 공감수(좋아요) 강제 초기화 제어가 가능합니다.")
@@ -329,7 +344,6 @@ else:
                                 st.success("해당 게시글의 공감 수가 초기화되었습니다.")
                                 st.rerun()
                         
-                        # 댓글 세부 관리 패널 (st.button 인자 오류 완벽 수정)
                         if post["comments"]:
                             st.markdown("<p style='font-size:13px; font-weight:bold; color:#555; margin-top:8px;'>▼ 댓글 내역 리스트 제어</p>", unsafe_allow_html=True)
                             for c_idx, comment in enumerate(post["comments"]):
@@ -444,12 +458,17 @@ else:
                 n_comment_text = st.text_input("공지사항에 댓글 남기기", placeholder="공지 내용을 확인했다면 댓글을 달아주세요.")
                 if st.form_submit_button("공지 댓글 등록"):
                     if n_comment_text:
-                        community["notice_comments"].append({
-                            "author": st.session_state.user_name,
-                            "text": n_comment_text
-                        })
-                        save_data(COMMUNITY_FILE, community)
-                        st.rerun()
+                        # 댓글 금지어 우회 필터링
+                        is_clean, bad_w = check_bad_words(n_comment_text)
+                        if not is_clean:
+                            st.error(f"❌ 댓글에 부적절한 단어({bad_w})가 포함되어 등록할 수 없습니다.")
+                        else:
+                            community["notice_comments"].append({
+                                "author": st.session_state.user_name,
+                                "text": n_comment_text
+                            })
+                            save_data(COMMUNITY_FILE, community)
+                            st.rerun()
 
         st.write("---")
         tab1, tab2, tab3 = st.tabs(["🤖 규정 질문 챗봇", "🏛️ 학생 소통 커뮤니티", "📊 실시간 투표존"])
@@ -487,17 +506,22 @@ else:
                 submit_post = st.form_submit_button("게시글 올리기")
                 
                 if submit_post and post_content:
-                    author_name = "익명의 새내기" if is_anonymous else st.session_state.user_name
-                    community["posts"].insert(0, {
-                        "id": len(community["posts"]),
-                        "author": author_name,
-                        "content": post_content,
-                        "likes": [],
-                        "comments": []
-                    })
-                    save_data(COMMUNITY_FILE, community)
-                    st.success("글이 정상적으로 등록되었습니다!")
-                    st.rerun()
+                    # 게시글 작성 시 금지어 자동 필터링 적용
+                    is_clean, bad_w = check_bad_words(post_content)
+                    if not is_clean:
+                        st.error(f"❌ 작성하신 내용에 부적절한 단어({bad_w})가 포함되어 게시할 수 없습니다. 바른 말을 사용해 주세요!")
+                    else:
+                        author_name = "익명의 새내기" if is_anonymous else st.session_state.user_name
+                        community["posts"].insert(0, {
+                            "id": len(community["posts"]),
+                            "author": author_name,
+                            "content": post_content,
+                            "likes": [],
+                            "comments": []
+                        })
+                        save_data(COMMUNITY_FILE, community)
+                        st.success("글이 정상적으로 등록되었습니다!")
+                        st.rerun()
 
             st.write("---")
             if not community["posts"]:
@@ -526,12 +550,17 @@ else:
                             comment_text = st.text_input("댓글 쓰기", placeholder="따뜻한 댓글을 남겨주세요.")
                             if st.form_submit_button("등록"):
                                 if comment_text:
-                                    post["comments"].append({
-                                        "author": st.session_state.user_name,
-                                        "text": comment_text
-                                    })
-                                    save_data(COMMUNITY_FILE, community)
-                                    st.rerun()
+                                    # 댓글 등록 시 금지어 자동 필터링 적용
+                                    is_clean, bad_w = check_bad_words(comment_text)
+                                    if not is_clean:
+                                        st.error(f"❌ 댓글 내용에 부적절한 단어({bad_w})가 포함되어 있습니다.")
+                                    else:
+                                        post["comments"].append({
+                                            "author": st.session_state.user_name,
+                                            "text": comment_text
+                                        })
+                                        save_data(COMMUNITY_FILE, community)
+                                        st.rerun()
                     st.markdown("---")
 
         # ---- 탭 3: 실시간 투표존 ----
@@ -589,10 +618,15 @@ else:
                                 p_comment_text = st.text_input("투표에 한마디 남기기", placeholder="투표 안건에 대한 본인의 생각을 공유해 주세요.")
                                 if st.form_submit_button("댓글 등록"):
                                     if p_comment_text:
-                                        poll["comments"].append({
-                                            "author": st.session_state.user_name,
-                                            "text": p_comment_text
-                                        })
-                                        save_data(COMMUNITY_FILE, community)
-                                        st.rerun()
+                                        # 투표 댓글에도 금지어 자동 필터링 적용
+                                        is_clean, bad_w = check_bad_words(p_comment_text)
+                                        if not is_clean:
+                                            st.error(f"❌ 한마디 내용에 부적절한 단어({bad_w})가 포함되어 있습니다.")
+                                        else:
+                                            poll["comments"].append({
+                                                "author": st.session_state.user_name,
+                                                "text": p_comment_text
+                                            })
+                                            save_data(COMMUNITY_FILE, community)
+                                            st.rerun()
                     st.markdown("---")
