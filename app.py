@@ -12,7 +12,7 @@ COMMUNITY_FILE = "community.json"
 PDF_FILE = "2025. 학생생활규정.pdf"
 
 # --- [관리자 기능] 기본 금지어 리스트 설정 ---
-BAD_WORDS = ["바보", "멍청이", "지랄", "존나", "개새끼", "시발", "새끼", " 미친"]
+BAD_WORDS = ["바보", "멍청이", "지랄", "존나", "개새끼", "시발", "새끼", "미친"]
 
 def check_bad_words(text):
     """텍스트에 금지어가 포함되어 있는지 확인하는 함수"""
@@ -109,6 +109,13 @@ if "logged_in" not in st.session_state:
 
 # --- 메인 화면 타이틀 ---
 st.title("🏫 신입생 학교생활 가이드 & 커뮤니티")
+
+# --- 🖼️ 메인 화면 상단 일러스트 사진 삽입 ---
+st.image(
+    "https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?q=80&w=1200&auto=format&fit=crop", 
+    caption="행복하고 건전한 우리의 학교생활 공간", 
+    use_container_width=True
+)
 
 # --- 1. 로그아웃 상태일 때 ---
 if not st.session_state.logged_in:
@@ -248,7 +255,6 @@ else:
             col_n1, col_n2 = st.columns(2)
             with col_n1:
                 if st.button("📢 공지사항 업데이트", use_container_width=True):
-                    # 공지사항 내용 금지어 체크
                     is_clean, bad_w = check_bad_words(new_notice)
                     if not is_clean:
                         st.error(f"❌ 공지사항에 부적절한 단어({bad_w})가 포함되어 등록할 수 없습니다.")
@@ -458,7 +464,6 @@ else:
                 n_comment_text = st.text_input("공지사항에 댓글 남기기", placeholder="공지 내용을 확인했다면 댓글을 달아주세요.")
                 if st.form_submit_button("공지 댓글 등록"):
                     if n_comment_text:
-                        # 댓글 금지어 우회 필터링
                         is_clean, bad_w = check_bad_words(n_comment_text)
                         if not is_clean:
                             st.error(f"❌ 댓글에 부적절한 단어({bad_w})가 포함되어 등록할 수 없습니다.")
@@ -506,7 +511,6 @@ else:
                 submit_post = st.form_submit_button("게시글 올리기")
                 
                 if submit_post and post_content:
-                    # 게시글 작성 시 금지어 자동 필터링 적용
                     is_clean, bad_w = check_bad_words(post_content)
                     if not is_clean:
                         st.error(f"❌ 작성하신 내용에 부적절한 단어({bad_w})가 포함되어 게시할 수 없습니다. 바른 말을 사용해 주세요!")
@@ -550,7 +554,6 @@ else:
                             comment_text = st.text_input("댓글 쓰기", placeholder="따뜻한 댓글을 남겨주세요.")
                             if st.form_submit_button("등록"):
                                 if comment_text:
-                                    # 댓글 등록 시 금지어 자동 필터링 적용
                                     is_clean, bad_w = check_bad_words(comment_text)
                                     if not is_clean:
                                         st.error(f"❌ 댓글 내용에 부적절한 단어({bad_w})가 포함되어 있습니다.")
@@ -586,7 +589,7 @@ else:
                         if st.session_state.user_id in poll["voted_users"]:
                             st.warning("이미 투표에 참여하셨습니다! 실시간 집계 결과:")
                             for opt, val in poll["votes"].items():
-                                st.write(f"✔️ **{opt}** : {val}표")
+                                '✔️ **{opt}** : {val}표'
                         else:
                             selected_opt = st.radio("보기를 선택하세요", poll["options"], key=f"poll_select_{p_idx}")
                             if st.button("투표 제출하기", key=f"poll_btn_{p_idx}"):
@@ -618,7 +621,6 @@ else:
                                 p_comment_text = st.text_input("투표에 한마디 남기기", placeholder="투표 안건에 대한 본인의 생각을 공유해 주세요.")
                                 if st.form_submit_button("댓글 등록"):
                                     if p_comment_text:
-                                        # 투표 댓글에도 금지어 자동 필터링 적용
                                         is_clean, bad_w = check_bad_words(p_comment_text)
                                         if not is_clean:
                                             st.error(f"❌ 한마디 내용에 부적절한 단어({bad_w})가 포함되어 있습니다.")
