@@ -107,15 +107,19 @@ if "logged_in" not in st.session_state:
     st.session_state.user_name = None
     st.session_state.role = "user"
 
-# --- 메인 화면 타이틀 ---
-st.title("🏫 신입생 학교생활 가이드 & 커뮤니티")
+# --- 🖼️ 메인 화면 상단 학교 로고 배치 ---
+col_logo, col_title = st.columns([1, 4])
+with col_logo:
+    # 나무위키 업로드 로고 연동 (레이아웃 조절용 크기 고정)
+    st.image(
+        "https://i.namu.wiki/i/-eAroAg-qXbT2pJ1ZA7PmtbFwbmwAxEwBCc3oLa4UhKh2DixIyG2i6kJw-TrTqEsLkVAOhlGN0nASpm690SRmA.webp", 
+        width=110
+    )
+with col_title:
+    st.markdown("<div style='padding-top: 15px;'></div>", unsafe_allow_html=True) # 타이틀 정렬 패딩
+    st.title("신입생 학교생활 가이드 & 소통망")
 
-# --- 🖼️ 메인 화면 상단 일러스트 사진 삽입 ---
-st.image(
-    "https://images.unsplash.com/photo-1427504494785-3a9ca7044f45?q=80&w=1200&auto=format&fit=crop", 
-    caption="행복하고 건전한 우리의 학교생활 공간", 
-    use_container_width=True
-)
+st.markdown("---")
 
 # --- 1. 로그아웃 상태일 때 ---
 if not st.session_state.logged_in:
@@ -357,6 +361,7 @@ else:
                                 with c_col1:
                                     st.caption(f"↳ **{comment['author']}**: {comment['text']}")
                                 with c_col2:
+                                    # ⚠️ TypeError 에러 방지: size="small" 옵션 제거 완료
                                     if st.button("🗑️ 댓글 삭제", key=f"del_cmt_{idx}_{c_idx}"):
                                         community["posts"][idx]["comments"].pop(c_idx)
                                         save_data(COMMUNITY_FILE, community)
@@ -589,7 +594,7 @@ else:
                         if st.session_state.user_id in poll["voted_users"]:
                             st.warning("이미 투표에 참여하셨습니다! 실시간 집계 결과:")
                             for opt, val in poll["votes"].items():
-                                '✔️ **{opt}** : {val}표'
+                                st.write(f"✔️ **{opt}** : {val}표")
                         else:
                             selected_opt = st.radio("보기를 선택하세요", poll["options"], key=f"poll_select_{p_idx}")
                             if st.button("투표 제출하기", key=f"poll_btn_{p_idx}"):
