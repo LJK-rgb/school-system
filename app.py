@@ -12,22 +12,22 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- 📱 [2] 태블릿/스마트폰 홈 화면 추가용 메타 태그 안전 주입 ---
+# --- 🎨 [2] 오른쪽 위 메뉴 버튼 및 하단 'Made with Streamlit' 완벽 제거 ---
 st.markdown(
     """
-    <div style="display:none;">
-        <head>
-            <meta name="apple-mobile-web-app-title" content="학교생활 가이드">
-            <meta name="application-name" content="학교생활 가이드">
-            
-            <link rel="apple-touch-icon" href="https://i.namu.wiki/i/-eAroAg-qXbT2pJ1ZA7PmtbFwbmwAxEwBCc3oLa4UhKh2DixIyG2i6kJw-TrTqEsLkVAOhlGN0nASpm690SRmA.webp">
-            <link rel="apple-touch-icon" sizes="152x152" href="https://i.namu.wiki/i/-eAroAg-qXbT2pJ1ZA7PmtbFwbmwAxEwBCc3oLa4UhKh2DixIyG2i6kJw-TrTqEsLkVAOhlGN0nASpm690SRmA.webp">
-            <link rel="apple-touch-icon" sizes="180x180" href="https://i.namu.wiki/i/-eAroAg-qXbT2pJ1ZA7PmtbFwbmwAxEwBCc3oLa4UhKh2DixIyG2i6kJw-TrTqEsLkVAOhlGN0nASpm690SRmA.webp">
-            
-            <link rel="icon" sizes="192x192" href="https://i.namu.wiki/i/-eAroAg-qXbT2pJ1ZA7PmtbFwbmwAxEwBCc3oLa4UhKh2DixIyG2i6kJw-TrTqEsLkVAOhlGN0nASpm690SRmA.webp">
-            <link rel="icon" sizes="512x512" href="https://i.namu.wiki/i/-eAroAg-qXbT2pJ1ZA7PmtbFwbmwAxEwBCc3oLa4UhKh2DixIyG2i6kJw-TrTqEsLkVAOhlGN0nASpm690SRmA.webp">
-        </head>
-    </div>
+    <style>
+        /* 1. 오른쪽 위 햄버거 메뉴 및 배포(Deploy) 버튼 제거 */
+        #MainMenu {visibility: hidden;}
+        header {visibility: hidden;}
+        
+        /* 2. 하단 Footer (Made with Streamlit) 주석 제거 */
+        footer {visibility: hidden;}
+        
+        /* 3. 모바일에서 상단 여백이 너무 비어 보이지 않도록 조절 */
+        .block-container {
+            padding-top: 2rem;
+        }
+    </style>
     """,
     unsafe_allow_html=True
 )
