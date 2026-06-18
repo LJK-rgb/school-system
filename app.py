@@ -5,55 +5,71 @@ from datetime import datetime
 import pypdf
 import re
 
-# --- 📱 [1] 브라우저 기본 페이지 설정 (가장 먼저 실행되어야 합니다) ---
+# --- 📱 [1] 브라우저 기본 페이지 설정 ---
 st.set_page_config(
     page_title="신입생 학교생활 가이드",
     page_icon="https://i.namu.wiki/i/-eAroAg-qXbT2pJ1ZA7PmtbFwbmwAxEwBCc3oLa4UhKh2DixIyG2i6kJw-TrTqEsLkVAOhlGN0nASpm690SRmA.webp",
     layout="centered"
 )
 
-# --- 🎨 [2] 우상단 메뉴, 하단 Footer, 우하단 Manage App 버튼 완벽 제거 ---
+# --- 🎨 [2] 우상단 메뉴, 하단 Footer, 우하단 'Hosted with Streamlit' 완벽 박멸 ---
 st.markdown(
     """
     <style>
-        /* 1. 오른쪽 위 햄버거 메뉴 및 배포(Deploy) 버튼 제거 */
-        #MainMenu {visibility: hidden;}
-        header {visibility: hidden;}
+        /* 1. 우상단 햄버거 메뉴 및 배포(Deploy) 헤더 완전 차단 */
+        #MainMenu {visibility: hidden !important;}
+        header {visibility: hidden !important;}
         
-        /* 2. 하단 Footer (Made with Streamlit) 문구 제거 */
-        footer {visibility: hidden;}
+        /* 2. 하단 기본 Footer 제거 */
+        footer {visibility: hidden !important;}
         
-        /* 3. 모바일에서 상단 여백이 너무 비어 보이지 않도록 조절 */
+        /* 3. 모바일/태블릿 상단 여백 보정 */
         .block-container {
             padding-top: 2rem;
         }
 
-        /* 4. 오른쪽 아래 둥둥 떠다니는 빨간색 배포자 버튼(Manage App) CSS 강제 숨김 */
-        iframe[title="Manage app"], 
-        div[data-testid="stViewerActionButton"],
-        .stActionButton,
-        button[title="Manage app"] {
+        /* 4. 우측 하단 플로팅 툴바 영역 (Hosted with Streamlit 호스팅 버튼) 무조건 화면 밖으로 퇴출 */
+        div[data-testid="stConnectionStatus"],
+        div[class*="stDeployButton"],
+        div[class*="viewerBadge"],
+        div[class*="stActionButton"],
+        iframe[title="Manage app"],
+        button[title="Manage app"],
+        [data-testid="stViewerActionButton"] {
             display: none !important;
             visibility: hidden !important;
             opacity: 0 !important;
-            transform: scale(0) !important;
+            width: 0 !important;
+            height: 0 !important;
+            pointer-events: none !important;
             bottom: -9999px !important;
             right: -9999px !important;
             position: absolute !important;
         }
     </style>
+    
     <script>
-        /* 5. 비동기로 생성되는 호스팅 버튼 요소를 실시간 감시하여 강제 파기 */
+        /* 5. 0.05초마다 페이지 전체를 정밀 스캔하여 'Streamlit' 텍스트가 박힌 모든 우하단 팝업 배너 제거 */
         setInterval(function() {
-            var manageBtn = document.querySelector('iframe[title="Manage app"]') || 
-                            document.querySelector('div[data-testid="stViewerActionButton"]') ||
-                            document.querySelector('.stActionButton') ||
-                            document.querySelector('button[title="Manage app"]');
-            if (manageBtn) {
-                manageBtn.style.display = 'none';
-                manageBtn.remove();
+            // 태그 종류 상관없이 'Streamlit' 문구가 포함된 배너/버튼 클래스 추적
+            var elements = document.querySelectorAll('div, button, a, iframe, span');
+            elements.forEach(function(el) {
+                var text = el.textContent || el.innerText || "";
+                if (text.includes("Hosted with Streamlit") || text.includes("Manage app") || text.includes("Created by")) {
+                    // 상위 컨테이너까지 엮어서 동시 소멸
+                    var parentNode = el.closest('div[class*="viewerBadge"]') || el.closest('div[class*="stActionButton"]') || el;
+                    parentNode.style.display = 'none';
+                    parentNode.style.visibility = 'hidden';
+                    parentNode.remove();
+                }
+            });
+            
+            // 쉐도우 돔(Shadow DOM) 내부나 프레임 구조까지 우회 차단
+            var hostBadge = document.querySelector('.viewerBadge') || document.querySelector('[data-testid="stViewerActionButton"]');
+            if (hostBadge) {
+                hostBadge.remove();
             }
-        }, 100);
+        }, 50);
     </script>
     """,
     unsafe_allow_html=True
