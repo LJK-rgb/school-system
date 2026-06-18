@@ -12,7 +12,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- 🎨 [2] 오른쪽 위 메뉴 버튼 및 하단 'Made with Streamlit' 완벽 제거 ---
+# --- 🎨 [2] 우상단 메뉴, 하단 Footer, 우하단 Manage App 버튼 완벽 제거 ---
 st.markdown(
     """
     <style>
@@ -20,14 +20,41 @@ st.markdown(
         #MainMenu {visibility: hidden;}
         header {visibility: hidden;}
         
-        /* 2. 하단 Footer (Made with Streamlit) 주석 제거 */
+        /* 2. 하단 Footer (Made with Streamlit) 문구 제거 */
         footer {visibility: hidden;}
         
         /* 3. 모바일에서 상단 여백이 너무 비어 보이지 않도록 조절 */
         .block-container {
             padding-top: 2rem;
         }
+
+        /* 4. 오른쪽 아래 둥둥 떠다니는 빨간색 배포자 버튼(Manage App) CSS 강제 숨김 */
+        iframe[title="Manage app"], 
+        div[data-testid="stViewerActionButton"],
+        .stActionButton,
+        button[title="Manage app"] {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            transform: scale(0) !important;
+            bottom: -9999px !important;
+            right: -9999px !important;
+            position: absolute !important;
+        }
     </style>
+    <script>
+        /* 5. 비동기로 생성되는 호스팅 버튼 요소를 실시간 감시하여 강제 파기 */
+        setInterval(function() {
+            var manageBtn = document.querySelector('iframe[title="Manage app"]') || 
+                            document.querySelector('div[data-testid="stViewerActionButton"]') ||
+                            document.querySelector('.stActionButton') ||
+                            document.querySelector('button[title="Manage app"]');
+            if (manageBtn) {
+                manageBtn.style.display = 'none';
+                manageBtn.remove();
+            }
+        }, 100);
+    </script>
     """,
     unsafe_allow_html=True
 )
