@@ -12,7 +12,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- 🎨 [2] 다크 모드 원복 & 파란색 디자인 & 배너 밀어내기 & 로그인 영구 유지 스크립트 ---
+# --- 🎨 [2] 다크 모드 원복 & 파란색 디자인 & 배너 밀어내기 & 로그인 상태 체크 스크립트 ---
 st.markdown(
     """
     <style>
@@ -96,14 +96,15 @@ st.markdown(
     </style>
 
     <script>
-        /* 🔄 브라우저 로컬 스토리지와 스트림릿 세션 연동 스크립트 */
+        /* 🔄 [수정] 자동 로그인을 주소창 파라미터가 아닌 안전한 스트림릿 통신 방식으로 유도 */
         const savedUser = localStorage.getItem("saved_user_info");
-        if (savedUser && !window.location.href.includes("logged_in=true")) {
+        if (savedUser && !window.location.href.includes("login_passed=true")) {
             const userInfo = JSON.parse(savedUser);
             const url = new URL(window.location.href);
             url.searchParams.set("autologin_id", userInfo.id);
             url.searchParams.set("autologin_name", userInfo.name);
             url.searchParams.set("autologin_role", userInfo.role);
+            url.searchParams.set("login_passed", "true");
             window.location.href = url.href;
         }
 
@@ -111,6 +112,7 @@ st.markdown(
             localStorage.removeItem("saved_user_info");
             const url = new URL(window.location.href);
             url.searchParams.delete("clear_login");
+            url.searchParams.delete("login_passed");
             window.location.href = url.href;
         }
     </script>
@@ -208,14 +210,13 @@ users["admin"] = {
 }
 save_data(USER_FILE, users)
 
-# --- 🔄 주소창의 자동로그인 유도 파라미터 읽기 ---
+# --- 🔄 [수정] 자동로그인 파라미터 감지 및 세션 강제 고정 ---
 query_params = st.query_params
-if "autologin_id" in query_params and "logged_in" not in st.session_state:
+if "autologin_id" in query_params:
     st.session_state.logged_in = True
     st.session_state.user_id = query_params["autologin_id"]
     st.session_state.user_name = query_params["autologin_name"]
     st.session_state.role = query_params["autologin_role"]
-    st.query_params.clear()
 
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -260,7 +261,7 @@ if not st.session_state.logged_in:
                 else:
                     st.session_state.role = "user"
                 
-                # 💾 로그인 성공 시 브라우저 로컬 스토리지에 자바스크립트로 정보 기억
+                # 💾 [수정] 자바스크립트는 브라우저 저장에만 관여하고, 화면 제어는 스트림릿 쿼리로 안전하게 이중 잠금
                 st.components.v1.html(f"""
                     <script>
                         localStorage.setItem("saved_user_info", JSON.stringify({{
@@ -268,10 +269,17 @@ if not st.session_state.logged_in:
                             name: "{st.session_state.user_name}",
                             role: "{st.session_state.role}"
                         }}));
-                        window.parent.location.reload();
                     </script>
                 """, height=0, width=0)
+                
+                st.query_params.update({
+                    "autologin_id": st.session_state.user_id,
+                    "autologin_name": st.session_state.user_name,
+                    "autologin_role": st.session_state.role,
+                    "login_passed": "true"
+                })
                 st.success(f"🎉 {st.session_state.user_name}님 로그인 성공!")
+                st.rerun()
             else:
                 st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
 
@@ -315,6 +323,7 @@ else:
         st.session_state.role = "user"
         
         # 🗑️ 로그아웃 버튼을 누르면 브라우저 저장소 데이터 지우도록 신호 전달
+        st.query_params.clear()
         st.query_params.update({"clear_login": "true"})
         st.rerun()
 
