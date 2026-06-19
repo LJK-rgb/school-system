@@ -12,16 +12,18 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- 🎨 [2] 다크 모드 & 파란색 테마 & 하단 배너 강제 완전 은폐 ---
+# --- 🎨 [2] 다크 모드 원복 & 파란색 디자인 & 배너를 화면 밖으로 밀어내기 ---
 st.markdown(
     """
     <style>
-        /* 1. 기본 배경 검은색 다크 모드 */
+        /* 1. 기본 배경 검은색 다크 모드로 완벽 원복 */
         .stApp {
             background-color: #0e1117 !important;
+            /* 화면 하단 공간을 강제로 확보하여 배너가 본문을 가리지 않고 바닥 아래로 내려가도록 조절 */
+            padding-bottom: 150px !important; 
         }
 
-        /* 2. 글자색 화이트 톤 */
+        /* 2. 글자색 화이트 톤으로 최적화 */
         h1, h2, h3, h4, p, span, label, li {
             color: #ffffff !important;
         }
@@ -29,87 +31,72 @@ st.markdown(
             color: #ffffff !important;
         }
 
-        /* 3. 왼쪽 사이드바 메뉴 영역 전체 파란색 톤 */
+        /* 3. [요청사항] 왼쪽 사이드바 메뉴 영역 전체 파란색 톤 스타일링 */
         [data-testid="stSidebar"] {
-            background-color: #1e293b !important; 
-            border-right: 2px solid #1d4ed8 !important; 
+            background-color: #1e293b !important; /* 사이드바 배경 진한 네이비 */
+            border-right: 2px solid #1d4ed8 !important; /* 사이드바 경계선 파란색 */
         }
+        /* 사이드바 내부 라디오 버튼 선택 항목 파란색 포인트 강조 */
         [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {
             background-color: #0f172a !important;
             border: 1px solid #334155 !important;
             padding: 8px 12px !important;
             border-radius: 6px !important;
             margin-bottom: 6px !important;
+            transition: all 0.2s ease;
         }
         [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:hover {
             border-color: #1d4ed8 !important;
             background-color: #1e3a8a !important;
         }
+        /* 사이드바 텍스트 색상 고정 */
         [data-testid="stSidebar"] h3, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span {
             color: #ffffff !important;
         }
 
-        /* 4. 로그인하기 및 모든 버튼 파란색 적용 */
+        /* 4. [요청사항] 로그인하기 및 모든 버튼 선명한 파란색(Blue) 적용 */
         .stButton>button {
             background-color: #1d4ed8 !important;
             color: #ffffff !important;
             border-radius: 6px !important;
             border: none !important;
             font-weight: bold !important;
+            transition: all 0.2s ease;
         }
         .stButton>button:hover {
             background-color: #2563eb !important;
             color: #ffffff !important;
+            box-shadow: 0px 0px 8px rgba(37, 99, 235, 0.6);
         }
 
-        /* 5. 입력창 테두리 */
+        /* 5. 입력창 테두리 가독성 확보 */
         input[type="text"], input[type="password"], textarea {
             color: #ffffff !important;
             background-color: #1f2937 !important;
             border: 1px solid #4b5563 !important;
         }
 
-        /* 6. 스트림릿 기본 메뉴 및 상단 툴바 숨김 */
+        /* 6. 스트림릿 상단 툴바 및 기본 푸터 숨김 */
         #MainMenu, header, footer {visibility: hidden !important; display: none !important;}
         [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stStatusWidget"] {
             display: none !important; visibility: hidden !important;
         }
 
-        /* 7. [핵심] 우하단 호스트 배너 및 프로필 영역 무조건 완전 은폐 (3중 투명화 레이어) */
+        /* 7. [물리적 완전 차단] 배너가 눈에 띄지 않게 위치와 높이를 파괴하여 화면 밑바닥 아래로 격리 */
         div[class*="viewerBadge"], 
         div[class*="stActionButton"], 
         iframe[title="Manage app"], 
         button[title="Manage app"],
         [data-testid="stViewerActionButton"],
-        div[class*="viewerContainer"],
-        footer + div {
+        div[class*="viewerContainer"] {
+            position: absolute !important;
+            bottom: -500px !important; /* 화면에서 보이지 않는 저 밑바닥으로 내던지기 */
             display: none !important;
             visibility: hidden !important;
             opacity: 0 !important;
-            height: 0 !important;
-            width: 0 !important;
-            position: fixed !important;
-            left: -9999px !important;
-            bottom: -9999px !important;
-            pointer-events: none !important;
+            height: 0px !important;
         }
     </style>
-    
-    <script>
-        /* 8. 브라우저 렌더링 후 실시간 DOM 추적 파괴 (안전장치) */
-        const killElements = setInterval(() => {
-            const targets = document.querySelectorAll('[class*="viewerBadge"], [class*="stActionButton"], iframe[title="Manage app"]');
-            targets.forEach(el => el.remove());
-            
-            const divs = document.querySelectorAll('div');
-            divs.forEach(div => {
-                if (div.innerText && (div.innerText.includes("Hosted with Streamlit") || div.innerText.includes("Created by"))) {
-                    div.remove();
-                }
-            });
-        }, 30);
-        setTimeout(() => clearInterval(killElements), 10000);
-    </script>
     """,
     unsafe_allow_html=True
 )
