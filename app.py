@@ -12,14 +12,13 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- 🎨 [2] 다크 모드 원복 & 파란색 디자인 & 배너를 화면 밖으로 밀어내기 ---
+# --- 🎨 [2] 다크 모드 원복 & 파란색 디자인 & 배너 밀어내기 & 로그인 영구 유지 스크립트 ---
 st.markdown(
     """
     <style>
         /* 1. 기본 배경 검은색 다크 모드로 완벽 원복 */
         .stApp {
             background-color: #0e1117 !important;
-            /* 화면 하단 공간을 강제로 확보하여 배너가 본문을 가리지 않고 바닥 아래로 내려가도록 조절 */
             padding-bottom: 150px !important; 
         }
 
@@ -31,12 +30,11 @@ st.markdown(
             color: #ffffff !important;
         }
 
-        /* 3. [요청사항] 왼쪽 사이드바 메뉴 영역 전체 파란색 톤 스타일링 */
+        /* 3. 왼쪽 사이드바 메뉴 영역 전체 파란색 톤 스타일링 */
         [data-testid="stSidebar"] {
-            background-color: #1e293b !important; /* 사이드바 배경 진한 네이비 */
-            border-right: 2px solid #1d4ed8 !important; /* 사이드바 경계선 파란색 */
+            background-color: #1e293b !important; 
+            border-right: 2px solid #1d4ed8 !important; 
         }
-        /* 사이드바 내부 라디오 버튼 선택 항목 파란색 포인트 강조 */
         [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {
             background-color: #0f172a !important;
             border: 1px solid #334155 !important;
@@ -49,12 +47,11 @@ st.markdown(
             border-color: #1d4ed8 !important;
             background-color: #1e3a8a !important;
         }
-        /* 사이드바 텍스트 색상 고정 */
         [data-testid="stSidebar"] h3, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span {
             color: #ffffff !important;
         }
 
-        /* 4. [요청사항] 로그인하기 및 모든 버튼 선명한 파란색(Blue) 적용 */
+        /* 4. 로그인하기 및 모든 버튼 선명한 파란색(Blue) 적용 */
         .stButton>button {
             background-color: #1d4ed8 !important;
             color: #ffffff !important;
@@ -82,7 +79,7 @@ st.markdown(
             display: none !important; visibility: hidden !important;
         }
 
-        /* 7. [물리적 완전 차단] 배너가 눈에 띄지 않게 위치와 높이를 파괴하여 화면 밑바닥 아래로 격리 */
+        /* 7. 배너 위치와 높이를 파괴하여 화면 밑바닥 아래로 격리 */
         div[class*="viewerBadge"], 
         div[class*="stActionButton"], 
         iframe[title="Manage app"], 
@@ -90,13 +87,33 @@ st.markdown(
         [data-testid="stViewerActionButton"],
         div[class*="viewerContainer"] {
             position: absolute !important;
-            bottom: -500px !important; /* 화면에서 보이지 않는 저 밑바닥으로 내던지기 */
+            bottom: -500px !important; 
             display: none !important;
             visibility: hidden !important;
             opacity: 0 !important;
             height: 0px !important;
         }
     </style>
+
+    <script>
+        /* 🔄 브라우저 로컬 스토리지와 스트림릿 세션 연동 스크립트 */
+        const savedUser = localStorage.getItem("saved_user_info");
+        if (savedUser && !window.location.href.includes("logged_in=true")) {
+            const userInfo = JSON.parse(savedUser);
+            const url = new URL(window.location.href);
+            url.searchParams.set("autologin_id", userInfo.id);
+            url.searchParams.set("autologin_name", userInfo.name);
+            url.searchParams.set("autologin_role", userInfo.role);
+            window.location.href = url.href;
+        }
+
+        if (window.location.href.includes("clear_login=true")) {
+            localStorage.removeItem("saved_user_info");
+            const url = new URL(window.location.href);
+            url.searchParams.delete("clear_login");
+            window.location.href = url.href;
+        }
+    </script>
     """,
     unsafe_allow_html=True
 )
@@ -191,6 +208,15 @@ users["admin"] = {
 }
 save_data(USER_FILE, users)
 
+# --- 🔄 주소창의 자동로그인 유도 파라미터 읽기 ---
+query_params = st.query_params
+if "autologin_id" in query_params and "logged_in" not in st.session_state:
+    st.session_state.logged_in = True
+    st.session_state.user_id = query_params["autologin_id"]
+    st.session_state.user_name = query_params["autologin_name"]
+    st.session_state.role = query_params["autologin_role"]
+    st.query_params.clear()
+
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.user_id = None
@@ -233,9 +259,19 @@ if not st.session_state.logged_in:
                     st.session_state.role = "sub_admin"
                 else:
                     st.session_state.role = "user"
-                    
+                
+                # 💾 로그인 성공 시 브라우저 로컬 스토리지에 자바스크립트로 정보 기억
+                st.components.v1.html(f"""
+                    <script>
+                        localStorage.setItem("saved_user_info", JSON.stringify({{
+                            id: "{st.session_state.user_id}",
+                            name: "{st.session_state.user_name}",
+                            role: "{st.session_state.role}"
+                        }}));
+                        window.parent.location.reload();
+                    </script>
+                """, height=0, width=0)
                 st.success(f"🎉 {st.session_state.user_name}님 로그인 성공!")
-                st.rerun()
             else:
                 st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
 
@@ -277,6 +313,9 @@ else:
         st.session_state.user_id = None
         st.session_state.user_name = None
         st.session_state.role = "user"
+        
+        # 🗑️ 로그아웃 버튼을 누르면 브라우저 저장소 데이터 지우도록 신호 전달
+        st.query_params.update({"clear_login": "true"})
         st.rerun()
 
     if st.session_state.role in ["master_admin", "sub_admin"]:
