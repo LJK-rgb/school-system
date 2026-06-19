@@ -4,6 +4,7 @@ import os
 from datetime import datetime
 import pypdf
 import re
+import time
 
 # --- 📱 [1] 브라우저 기본 페이지 설정 ---
 st.set_page_config(
@@ -12,25 +13,20 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- 🎨 [2] 다크 모드 원복 & 파란색 디자인 & 배너 밀어내기 & 로그인 상태 체크 스크립트 ---
+# --- 🎨 [2] 다크 모드 원복 & 파란색 디자인 & 배너 완전히 밀어내기 CSS ---
 st.markdown(
     """
     <style>
-        /* 1. 기본 배경 검은색 다크 모드로 완벽 원복 */
         .stApp {
             background-color: #0e1117 !important;
             padding-bottom: 150px !important; 
         }
-
-        /* 2. 글자색 화이트 톤으로 최적화 */
         h1, h2, h3, h4, p, span, label, li {
             color: #ffffff !important;
         }
         .stMarkdown div p {
             color: #ffffff !important;
         }
-
-        /* 3. 왼쪽 사이드바 메뉴 영역 전체 파란색 톤 스타일링 */
         [data-testid="stSidebar"] {
             background-color: #1e293b !important; 
             border-right: 2px solid #1d4ed8 !important; 
@@ -50,8 +46,6 @@ st.markdown(
         [data-testid="stSidebar"] h3, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span {
             color: #ffffff !important;
         }
-
-        /* 4. 로그인하기 및 모든 버튼 선명한 파란색(Blue) 적용 */
         .stButton>button {
             background-color: #1d4ed8 !important;
             color: #ffffff !important;
@@ -65,21 +59,15 @@ st.markdown(
             color: #ffffff !important;
             box-shadow: 0px 0px 8px rgba(37, 99, 235, 0.6);
         }
-
-        /* 5. 입력창 테두리 가독성 확보 */
         input[type="text"], input[type="password"], textarea {
             color: #ffffff !important;
             background-color: #1f2937 !important;
             border: 1px solid #4b5563 !important;
         }
-
-        /* 6. 스트림릿 상단 툴바 및 기본 푸터 숨김 */
         #MainMenu, header, footer {visibility: hidden !important; display: none !important;}
         [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stStatusWidget"] {
             display: none !important; visibility: hidden !important;
         }
-
-        /* 7. 배너 위치와 높이를 파괴하여 화면 밑바닥 아래로 격리 */
         div[class*="viewerBadge"], 
         div[class*="stActionButton"], 
         iframe[title="Manage app"], 
@@ -94,28 +82,6 @@ st.markdown(
             height: 0px !important;
         }
     </style>
-
-    <script>
-        /* 🔄 [수정] 자동 로그인을 주소창 파라미터가 아닌 안전한 스트림릿 통신 방식으로 유도 */
-        const savedUser = localStorage.getItem("saved_user_info");
-        if (savedUser && !window.location.href.includes("login_passed=true")) {
-            const userInfo = JSON.parse(savedUser);
-            const url = new URL(window.location.href);
-            url.searchParams.set("autologin_id", userInfo.id);
-            url.searchParams.set("autologin_name", userInfo.name);
-            url.searchParams.set("autologin_role", userInfo.role);
-            url.searchParams.set("login_passed", "true");
-            window.location.href = url.href;
-        }
-
-        if (window.location.href.includes("clear_login=true")) {
-            localStorage.removeItem("saved_user_info");
-            const url = new URL(window.location.href);
-            url.searchParams.delete("clear_login");
-            url.searchParams.delete("login_passed");
-            window.location.href = url.href;
-        }
-    </script>
     """,
     unsafe_allow_html=True
 )
@@ -126,7 +92,6 @@ CHAT_FILE = "chats.json"
 COMMUNITY_FILE = "community.json"
 PDF_FILE = "2025. 학생생활규정.pdf"
 
-# --- [관리자 기능] 기본 금지어 리스트 설정 ---
 BAD_WORDS = ["바보", "멍청이", "지랄", "존나", "개새끼", "시발", "새끼", "미친"]
 
 def check_bad_words(text):
@@ -158,28 +123,21 @@ def load_pdf_text(filepath):
 def search_pdf_with_highlight(query, pdf_text):
     if not pdf_text:
         return "⚠️ 현재 서버에 학교 규정집 PDF 파일이 없거나 읽을 수 없습니다."
-    
     keywords = [kw for kw in query.split() if len(kw) > 1]
     if not keywords:
         return "🔍 검색어를 두 글자 이상 입력해 주세요."
         
     sections = re.split(r'(제\s*\d+\s*조)', pdf_text)
     results = []
-    
     for i in range(1, len(sections), 2):
         section_title = sections[i].strip()
         section_content = sections[i+1] if i+1 < len(sections) else ""
-        
         if any(kw in section_content for kw in keywords):
             full_text = section_title + section_content
-            
-            highlighted_text = full_text
             for kw in keywords:
-                highlighted_text = re.sub(f"({re.escape(kw)})", r"<mark style='background-color: #FFEB3B; color: #000000; padding: 2px 4px; border-radius: 3px; font-weight: bold;'>\1</mark>", highlighted_text)
-            
+                highlighted_text = re.sub(f"({re.escape(kw)})", r"<mark style='background-color: #FFEB3B; color: #000000; padding: 2px 4px; border-radius: 3px; font-weight: bold;'>\1</mark>", full_text)
             results.append(highlighted_text.strip())
-            if len(results) >= 3:
-                break
+            if len(results) >= 3: break
                 
     if results:
         output = "🔍 **규정집 내부 매칭된 조항 검색 결과:**\n\n"
@@ -189,7 +147,7 @@ def search_pdf_with_highlight(query, pdf_text):
     else:
         return "🔍 규정집에서 관련 조항을 찾지 못했습니다. 보다 정확한 단어(예: 두발, 전자기기, 복장, 휴대전화 등)로 다시 질문해 주세요."
 
-# 데이터 기본 로드
+# 매번 실행될 때마다 파일에서 최신 데이터를 강제 로드합니다. (실시간 동기화의 핵심)
 users = load_data(USER_FILE)
 chats = load_data(CHAT_FILE)
 community = load_data(COMMUNITY_FILE)
@@ -203,34 +161,59 @@ if "notice_time" not in community: community["notice_time"] = ""
 if "notice_likes" not in community: community["notice_likes"] = []
 if "notice_comments" not in community: community["notice_comments"] = []
 
-users["admin"] = {
-    "password": "ahsknue2026_2026!", 
-    "name": "최고관리자", 
-    "role": "master_admin"
-}
+users["admin"] = {"password": "ahsknue2026_2026!", "name": "최고관리자", "role": "master_admin"}
 save_data(USER_FILE, users)
 
-# --- 🔄 [수정] 자동로그인 파라미터 감지 및 세션 강제 고정 ---
-query_params = st.query_params
-if "autologin_id" in query_params:
-    st.session_state.logged_in = True
-    st.session_state.user_id = query_params["autologin_id"]
-    st.session_state.user_name = query_params["autologin_name"]
-    st.session_state.role = query_params["autologin_role"]
-
+# 세션 초기화
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.user_id = None
     st.session_state.user_name = None
     st.session_state.role = "user"
 
+# --- 🔄 브라우저 종료 후에도 유지되는 백그라운드 브릿지 ---
+if not st.session_state.logged_in:
+    storage_bridge = st.text_input("storage_bridge", key="storage_bridge", label_visibility="collapsed")
+    st.components.v1.html(
+        """
+        <script>
+            const parentDoc = window.parent.document;
+            const savedUser = localStorage.getItem("saved_user_info");
+            if (savedUser) {
+                const inputs = parentDoc.querySelectorAll('input[type="text"]');
+                let bridgeInput = null;
+                for (let input of inputs) {
+                    if (input.ariaLabel === "storage_bridge" || input.id === "storage_bridge") {
+                        bridgeInput = input;
+                        break;
+                    }
+                }
+                if (bridgeInput && bridgeInput.value !== savedUser) {
+                    bridgeInput.value = savedUser;
+                    bridgeInput.dispatchEvent(new Event('input', { bubbles: true }));
+                    bridgeInput.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }
+        </script>
+        """,
+        height=0
+    )
+
+    if st.session_state.storage_bridge:
+        try:
+            user_info = json.loads(st.session_state.storage_bridge)
+            st.session_state.logged_in = True
+            st.session_state.user_id = user_info["id"]
+            st.session_state.user_name = user_info["name"]
+            st.session_state.role = user_info["role"]
+            st.rerun()
+        except:
+            pass
+
 # --- 🖼️ 메인 화면 상단 학교 로고 배치 ---
 col_logo, col_title = st.columns([1, 4])
 with col_logo:
-    st.image(
-        "https://i.namu.wiki/i/-eAroAg-qXbT2pJ1ZA7PmtbFwbmwAxEwBCc3oLa4UhKh2DixIyG2i6kJw-TrTqEsLkVAOhlGN0nASpm690SRmA.webp", 
-        width=110
-    )
+    st.image("https://i.namu.wiki/i/-eAroAg-qXbT2pJ1ZA7PmtbFwbmwAxEwBCc3oLa4UhKh2DixIyG2i6kJw-TrTqEsLkVAOhlGN0nASpm690SRmA.webp", width=110)
 with col_title:
     st.markdown("<div style='padding-top: 15px;'></div>", unsafe_allow_html=True)
     st.title("신입생 학교생활 가이드 & 소통망")
@@ -240,7 +223,6 @@ st.markdown("---")
 # --- 1. 로그아웃 상태일 때 ---
 if not st.session_state.logged_in:
     st.info("👋 안녕하세요! 서비스를 이용하시려면 로그인이나 회원가입을 진행해 주세요.")
-    
     auth_tab1, auth_tab2 = st.tabs(["🔑 로그인", "📝 회원가입"])
 
     with auth_tab1:
@@ -254,14 +236,10 @@ if not st.session_state.logged_in:
                 st.session_state.user_id = user_id
                 st.session_state.user_name = users[user_id]["name"]
                 
-                if user_id == "admin":
-                    st.session_state.role = "master_admin"
-                elif users[user_id].get("role") == "sub_admin":
-                    st.session_state.role = "sub_admin"
-                else:
-                    st.session_state.role = "user"
+                if user_id == "admin": st.session_state.role = "master_admin"
+                elif users[user_id].get("role") == "sub_admin": st.session_state.role = "sub_admin"
+                else: st.session_state.role = "user"
                 
-                # 💾 [수정] 자바스크립트는 브라우저 저장에만 관여하고, 화면 제어는 스트림릿 쿼리로 안전하게 이중 잠금
                 st.components.v1.html(f"""
                     <script>
                         localStorage.setItem("saved_user_info", JSON.stringify({{
@@ -270,14 +248,7 @@ if not st.session_state.logged_in:
                             role: "{st.session_state.role}"
                         }}));
                     </script>
-                """, height=0, width=0)
-                
-                st.query_params.update({
-                    "autologin_id": st.session_state.user_id,
-                    "autologin_name": st.session_state.user_name,
-                    "autologin_role": st.session_state.role,
-                    "login_passed": "true"
-                })
+                """, height=0)
                 st.success(f"🎉 {st.session_state.user_name}님 로그인 성공!")
                 st.rerun()
             else:
@@ -290,16 +261,12 @@ if not st.session_state.logged_in:
         new_pw = st.text_input("비밀번호 (영문+숫자+특수문자 필수)", type="password", placeholder="특수문자: !@#$%^&*_", key="join_pw_input")
         
         if st.button("가입하기", use_container_width=True):
-            if not new_id or not new_name or not new_pw: 
-                st.error("❌ 모든 칸을 입력해주세요.")
-            elif not re.match(r"^\d+$", new_id):
-                st.error("❌ 학번 칸에는 숫자만 입력할 수 있습니다.")
-            elif not re.match(r"^[가-힣]{3,4}$", new_name):
-                st.error("❌ 이름은 공백이나 초성 없이 정확히 한글 3~4글자로 입력해 주세요.")
+            if not new_id or not new_name or not new_pw: st.error("❌ 모든 칸을 입력해주세요.")
+            elif not re.match(r"^\d+$", new_id): st.error("❌ 학번 칸에는 숫자만 입력할 수 있습니다.")
+            elif not re.match(r"^[가-힣]{3,4}$", new_name): st.error("❌ 이름은 공백이나 초성 없이 정확히 한글 3~4글자로 입력해 주세요.")
             elif not (re.search(r"[a-zA-Z]", new_pw) and re.search(r"\d", new_pw) and re.search(r"[!@#\$%\^&\*_]", new_pw)):
                 st.error("❌ 비밀번호는 영문자, 숫자, 특수문자(!@#$%^&*_)가 각각 최소 1개 이상씩 포함되어야 합니다.")
-            elif new_id in users or new_id == "admin": 
-                st.error("❌ 이미 존재하는 학번이거나 사용할 수 없는 ID입니다.")
+            elif new_id in users or new_id == "admin": st.error("❌ 이미 존재하는 학번이거나 사용할 수 없는 ID입니다.")
             else:
                 users[new_id] = {"password": new_pw, "name": new_name, "role": "user"}
                 save_data(USER_FILE, users)
@@ -308,24 +275,36 @@ if not st.session_state.logged_in:
 # --- 2. 로그인 완료 상태일 때 ---
 else:
     st.sidebar.markdown(f"### 👤 {st.session_state.user_name}님")
-    
-    if st.session_state.role == "master_admin":
-        st.sidebar.markdown("👑 **등급:** `최고 관리자 (마스터)`")
-    elif st.session_state.role == "sub_admin":
-        st.sidebar.markdown("🛡️ **등급:** `일반 관리자`")
-    else:
-        st.sidebar.markdown("🎓 **등급:** `일반 학생 사용자`")
+    if st.session_state.role == "master_admin": st.sidebar.markdown("👑 **등급:** `최고 관리자 (마스터)`")
+    elif st.session_state.role == "sub_admin": st.sidebar.markdown("🛡️ **등급:** `일반 관리자`")
+    else: st.sidebar.markdown("🎓 **등급:** `일반 학생 사용자`")
         
     if st.sidebar.button("로그아웃", use_container_width=True):
         st.session_state.logged_in = False
         st.session_state.user_id = None
         st.session_state.user_name = None
         st.session_state.role = "user"
+        if "storage_bridge" in st.session_state: st.session_state.storage_bridge = ""
         
-        # 🗑️ 로그아웃 버튼을 누르면 브라우저 저장소 데이터 지우도록 신호 전달
-        st.query_params.clear()
-        st.query_params.update({"clear_login": "true"})
+        st.components.v1.html("<script>localStorage.removeItem('saved_user_info');</script>", height=0)
         st.rerun()
+
+    # --- ⏱️ [핵심 추가] 실시간 화면 자동 갱신 런타임 스크립트 (3초마다 자동 새로고침 유도) ---
+    # 사용자가 글을 작성하는 Form을 건드리지 않고, 백그라운드 데이터만 계속 최신화해 줍니다.
+    st.components.v1.html(
+        """
+        <script>
+            // 3000ms(3초)마다 스트림릿 본진에 새로고침 신호를 전달합니다.
+            if (!window.statusIntervalSet) {
+                window.statusIntervalSet = true;
+                setInterval(function() {
+                    window.parent.postMessage({type: 'streamlit:rerun'}, '*');
+                }, 3000); 
+            }
+        </script>
+        """,
+        height=0
+    )
 
     if st.session_state.role in ["master_admin", "sub_admin"]:
         st.sidebar.markdown("---")
@@ -348,18 +327,14 @@ else:
             
             target_users = {}
             if search_uid:
-                if search_uid in users and users[search_uid].get("role") != "master_admin":
-                    target_users[search_uid] = users[search_uid]
-                else:
-                    st.info("검색된 대상 계정이 없거나 최고관리자 계정은 수정할 수 없습니다.")
-            else:
-                target_users = {k: v for k, v in users.items() if v.get("role") != "master_admin"}
+                if search_uid in users and users[search_uid].get("role") != "master_admin": target_users[search_uid] = users[search_uid]
+                else: st.info("검색된 대상 계정이 없거나 최고관리자 계정은 수정할 수 없습니다.")
+            else: target_users = {k: v for k, v in users.items() if v.get("role") != "master_admin"}
 
             if target_users:
                 for u_id, u_info in target_users.items():
                     u_role = u_info.get("role", "user")
                     role_badge = "🛡️ [일반 관리자]" if u_role == "sub_admin" else "🎓 [일반학생]"
-                    
                     if u_role == "sub_admin" and st.session_state.role != "master_admin":
                         with st.expander(f"{role_badge} ID: {u_id} | 이름: {u_info['name']}"):
                             st.warning("🔒 일반 관리자 계정 정보는 최고관리자(master_admin)만 조회 및 수정할 수 있습니다.")
@@ -368,7 +343,6 @@ else:
                     with st.expander(f"{role_badge} ID/학번: {u_id} | 이름: {u_info['name']} 계정 설정"):
                         edit_name = st.text_input(f"이름 수정 ({u_id})", value=u_info['name'], key=f"name_{u_id}")
                         edit_pw = st.text_input(f"비밀번호 조회/수정 ({u_id})", value=u_info['password'], key=f"pw_{u_id}")
-                        
                         col_u1, col_u2 = st.columns(2)
                         with col_u1:
                             if st.button(f"💾 {u_id} 정보 수정 저장", key=f"save_u_{u_id}"):
@@ -391,14 +365,13 @@ else:
             with col_n1:
                 if st.button("📢 공지사항 업데이트", use_container_width=True):
                     is_clean, bad_w = check_bad_words(new_notice)
-                    if not is_clean:
-                        st.error(f"❌ 공지사항에 부적절한 단어({bad_w})가 포함되어 등록할 수 없습니다.")
+                    if not is_clean: st.error(f"❌ 공지사항에 부적절한 단어({bad_w})가 포함되었습니다.")
                     else:
                         community["notice"] = new_notice
                         community["notice_author"] = st.session_state.user_name
                         community["notice_time"] = datetime.now().strftime("%Y-%m-%d %H:%M")
                         save_data(COMMUNITY_FILE, community)
-                        st.success("공지사항이 새로운 작성자 정보와 함께 업데이트되었습니다.")
+                        st.success("공지사항이 업데이트되었습니다.")
                         st.rerun()
             with col_n2:
                 if st.button("🗑️ 공지사항 및 피드백 전체 초기화", use_container_width=True):
@@ -419,14 +392,8 @@ else:
             if st.button("🗳️ 투표 공식 발의"):
                 if poll_title and poll_opt1 and poll_opt2:
                     community["polls"].append({
-                        "id": len(community["polls"]),
-                        "title": poll_title,
-                        "options": [poll_opt1, poll_opt2],
-                        "votes": {poll_opt1: 0, poll_opt2: 0},
-                        "voted_users": [],
-                        "is_closed": False,
-                        "likes": [],
-                        "comments": []
+                        "id": len(community["polls"]), "title": poll_title, "options": [poll_opt1, poll_opt2],
+                        "votes": {poll_opt1: 0, poll_opt2: 0}, "voted_users": [], "is_closed": False, "likes": [], "comments": []
                     })
                     save_data(COMMUNITY_FILE, community)
                     st.success("새로운 학생 투표가 등록되었습니다.")
@@ -434,13 +401,11 @@ else:
             
             st.write("---")
             st.markdown("**[현재 진행 중인 투표 목록 제어]**")
-            if not community["polls"]:
-                st.info("현재 개설된 투표가 없습니다.")
+            if not community["polls"]: st.info("현재 개설된 투표가 없습니다.")
             else:
                 for p_idx, poll in enumerate(community["polls"]):
                     status_text = "🔒 [마감됨]" if poll.get("is_closed", False) else "🔓 [진행중]"
                     st.write(f"📊 **{status_text} 주제:** {poll['title']} (참여수: {len(poll['voted_users'])}명)")
-                    
                     col_p1, col_p2 = st.columns(2)
                     with col_p1:
                         if not poll.get("is_closed", False):
@@ -449,8 +414,7 @@ else:
                                 save_data(COMMUNITY_FILE, community)
                                 st.success("투표가 마감 처리되었습니다.")
                                 st.rerun()
-                        else:
-                            st.caption("이미 마감된 투표입니다.")
+                        else: st.caption("이미 마감된 투표입니다.")
                     with col_p2:
                         if st.button(f"🗑️ '{poll['title'][:6]}...' 완전 삭제", key=f"del_poll_{p_idx}", use_container_width=True):
                             community["polls"].pop(p_idx)
@@ -460,14 +424,12 @@ else:
 
         elif sub_choice == "🏛️ 커뮤니티 게시글 관리":
             st.write("#### 🚨 학생 커뮤니티 전체 게시물 관리")
-            if not community["posts"]:
-                st.info("현재 대나무숲에 등록된 글이 없습니다.")
+            if not community["posts"]: st.info("현재 대나무숲에 등록된 글이 없습니다.")
             else:
                 for idx, post in enumerate(community["posts"]):
                     with st.container():
                         st.markdown(f"✍️ **작성자:** `{post['author']}` | ❤️ 공감: {len(post['likes'])}개 | 💬 댓글: {len(post['comments'])}개")
                         st.info(post["content"])
-                        
                         col_adm1, col_adm2 = st.columns(2)
                         with col_adm1:
                             if st.button(f"🗑️ 게시글 내용 전면 삭제", key=f"del_post_{idx}", use_container_width=True):
@@ -479,14 +441,12 @@ else:
                             if st.button(f"❤️ 공감 수 초기화 (0으로 세팅)", key=f"reset_likes_{idx}", use_container_width=True):
                                 community["posts"][idx]["likes"] = []
                                 save_data(COMMUNITY_FILE, community)
-                                st.success("해당 게시글의 공감 수가 초기화되었습니다.")
+                                st.success("공감 수가 초기화되었습니다.")
                                 st.rerun()
-                        
                         if post["comments"]:
                             for c_idx, comment in enumerate(post["comments"]):
                                 c_col1, c_col2 = st.columns([4, 1])
-                                with c_col1:
-                                    st.caption(f"↳ **{comment['author']}**: {comment['text']}")
+                                with c_col1: st.caption(f"↳ **{comment['author']}**: {comment['text']}")
                                 with c_col2:
                                     if st.button("🗑️ 삭제", key=f"del_cmt_{idx}_{c_idx}"):
                                         community["posts"][idx]["comments"].pop(c_idx)
@@ -496,37 +456,30 @@ else:
 
         elif sub_choice == "💬 학생 질문 로그":
             st.write("#### 📋 학생별 규정집 실시간 질문 로그")
-            if not chats:
-                st.info("아직 학생들이 검색한 데이터 내역이 없습니다.")
+            if not chats: st.info("아직 학생들이 검색한 데이터 내역이 없습니다.")
             else:
                 for uid, history in chats.items():
                     student_name = users.get(uid, {}).get("name", "미등록 사용자")
                     with st.expander(f"👤 학번: {uid} ({student_name})의 검색 기록"):
-                        for chat in history:
-                            st.write(f"**[{chat['time']}]** 입력어: `{chat['query']}`")
+                        for chat in history: st.write(f"**[{chat['time']}]** 입력어: `{chat['query']}`")
 
         elif sub_choice == "🔥 최다 질문 통계":
             st.write("#### 📊 학생들의 최고 관심 규정 키워드")
             all_words = []
             for uid, history in chats.items():
-                for chat in history:
-                    all_words.extend(chat['query'].split())
-            
+                for chat in history: all_words.extend(chat['query'].split())
             filtered = [w for w in all_words if len(w) > 1]
-            if not filtered:
-                st.info("통계 분석을 수행할 검색 데이터가 아직 축적되지 않았습니다.")
+            if not filtered: st.info("통계 분석을 수행할 검색 데이터가 아직 없습니다.")
             else:
                 counts = {}
                 for w in filtered: counts[w] = counts.get(w, 0) + 1
                 top_five = sorted(counts.items(), key=lambda x: x[1], reverse=True)[:5]
-                
                 st.metric("📈 전체 실시간 검색어 수", len(filtered))
                 for rank, (word, cnt) in enumerate(top_five, 1):
                     st.write(f"🥇 **{rank}위** : `{word}` (총 {cnt}회 조회)")
 
         elif sub_choice == "🏛️ 학생 커뮤니티 보기":
-            if not community["posts"]:
-                st.info("현재 대나무숲에 등록된 게시글이 없습니다.")
+            if not community["posts"]: st.info("현재 대나무숲에 등록된 게시글이 없습니다.")
             else:
                 for idx, post in enumerate(community["posts"]):
                     st.markdown(f"👤 **{post['author']}**")
@@ -534,14 +487,12 @@ else:
                     st.markdown("---")
 
         elif sub_choice == "📊 실시간 투표존 보기":
-            if not community["polls"]:
-                st.info("현재 개설된 투표가 없습니다.")
+            if not community["polls"]: st.info("현재 개설된 투표가 없습니다.")
             else:
                 for p_idx, poll in enumerate(community["polls"]):
                     status_label = "🔒 [마감됨]" if poll.get("is_closed", False) else "🔓 [진행중]"
                     st.write(f"#### {status_label} 주제: {poll['title']}")
-                    for opt, val in poll["votes"].items():
-                        st.write(f"✔️ **{opt}** : {val}표")
+                    for opt, val in poll["votes"].items(): st.write(f"✔️ **{opt}** : {val}표")
                     st.markdown("---")
 
         elif sub_choice == "➕ 일반 관리자 계정 생성":
@@ -549,10 +500,8 @@ else:
             sub_name = st.text_input("일반 관리자 담당자 이름")
             sub_pw = st.text_input("일반 관리자용 비밀번호", type="password")
             if st.button("일반 관리자 계정 등록"):
-                if not sub_id or not sub_name or not sub_pw:
-                    st.error("빈칸 없이 모두 입력해 주세요.")
-                elif sub_id in users or sub_id == "admin":
-                    st.error("이미 사용 중인 중복 ID입니다.")
+                if not sub_id or not sub_name or not sub_pw: st.error("빈칸 없이 모두 입력해 주세요.")
+                elif sub_id in users or sub_id == "admin": st.error("이미 사용 중인 중복 ID입니다.")
                 else:
                     users[sub_id] = {"password": sub_pw, "name": sub_name, "role": "sub_admin"}
                     save_data(USER_FILE, users)
@@ -567,28 +516,20 @@ else:
             col_n_like, _ = st.columns([1, 4])
             with col_n_like:
                 if st.button(f"❤️ 공감 {len(community['notice_likes'])}", key="notice_like_btn"):
-                    if st.session_state.user_id in community["notice_likes"]:
-                        community["notice_likes"].remove(st.session_state.user_id)
-                    else:
-                        community["notice_likes"].append(st.session_state.user_id)
+                    if st.session_state.user_id in community["notice_likes"]: community["notice_likes"].remove(st.session_state.user_id)
+                    else: community["notice_likes"].append(st.session_state.user_id)
                     save_data(COMMUNITY_FILE, community)
                     st.rerun()
             
-            for n_cmt in community["notice_comments"]:
-                st.write(f"↳ **{n_cmt['author']}**: {n_cmt['text']}")
-            
+            for n_cmt in community["notice_comments"]: st.write(f"↳ **{n_cmt['author']}**: {n_cmt['text']}")
             with st.form("notice_comment_form", clear_on_submit=True):
                 n_comment_text = st.text_input("공지사항에 댓글 남기기")
                 if st.form_submit_button("공지 댓글 등록"):
                     if n_comment_text:
                         is_clean, bad_w = check_bad_words(n_comment_text)
-                        if not is_clean:
-                            st.error(f"❌ 댓글에 부적절한 단어({bad_w})가 포함되었습니다.")
+                        if not is_clean: st.error(f"❌ 댓글에 부적절한 단어({bad_w})가 포함되었습니다.")
                         else:
-                            community["notice_comments"].append({
-                                "author": st.session_state.user_name,
-                                "text": n_comment_text
-                            })
+                            community["notice_comments"].append({"author": st.session_state.user_name, "text": n_comment_text})
                             save_data(COMMUNITY_FILE, community)
                             st.rerun()
 
@@ -602,12 +543,8 @@ else:
                 if user_query:
                     answer_html = search_pdf_with_highlight(user_query, pdf_content)
                     st.markdown(answer_html, unsafe_allow_html=True)
-                    if st.session_state.user_id not in chats:
-                        chats[st.session_state.user_id] = []
-                    chats[st.session_state.user_id].append({
-                        "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "query": user_query
-                    })
+                    if st.session_state.user_id not in chats: chats[st.session_state.user_id] = []
+                    chats[st.session_state.user_id].append({"time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "query": user_query})
                     save_data(CHAT_FILE, chats)
 
         with tab2:
@@ -617,17 +554,10 @@ else:
                 is_anonymous = st.checkbox("익명으로 올리기")
                 if st.form_submit_button("게시글 올리기") and post_content:
                     is_clean, bad_w = check_bad_words(post_content)
-                    if not is_clean:
-                        st.error(f"❌ 부적절한 단어({bad_w})가 포함되어 있습니다.")
+                    if not is_clean: st.error(f"❌ 부적절한 단어({bad_w})가 포함되어 있습니다.")
                     else:
                         author_name = "익명의 새내기" if is_anonymous else st.session_state.user_name
-                        community["posts"].insert(0, {
-                            "id": len(community["posts"]),
-                            "author": author_name,
-                            "content": post_content,
-                            "likes": [],
-                            "comments": []
-                        })
+                        community["posts"].insert(0, {"id": len(community["posts"]), "author": author_name, "content": post_content, "likes": [], "comments": []})
                         save_data(COMMUNITY_FILE, community)
                         st.rerun()
 
@@ -635,31 +565,23 @@ else:
             for idx, post in enumerate(community["posts"]):
                 st.markdown(f"👤 **{post['author']}**")
                 st.info(post["content"])
-                
                 col1, _ = st.columns([1, 5])
                 with col1:
                     if st.button(f"❤️ {len(post['likes'])}", key=f"like_{idx}"):
-                        if st.session_state.user_id in post["likes"]:
-                            post["likes"].remove(st.session_state.user_id)
-                        else:
-                            post["likes"].append(st.session_state.user_id)
+                        if st.session_state.user_id in post["likes"]: post["likes"].remove(st.session_state.user_id)
+                        else: post["likes"].append(st.session_state.user_id)
                         save_data(COMMUNITY_FILE, community)
                         st.rerun()
                         
                 with st.expander(f"💬 댓글 ({len(post['comments'])}개) 열기"):
-                    for comment in post["comments"]:
-                        st.write(f"↳ **{comment['author']}**: {comment['text']}")
+                    for comment in post["comments"]: st.write(f"↳ **{comment['author']}**: {comment['text']}")
                     with st.form(f"comment_form_{idx}", clear_on_submit=True):
                         comment_text = st.text_input("댓글 쓰기")
                         if st.form_submit_button("등록") and comment_text:
                             is_clean, bad_w = check_bad_words(comment_text)
-                            if not is_clean:
-                                st.error(f"❌ 댓글 내용에 부적절한 단어({bad_w})가 있습니다.")
+                            if not is_clean: st.error(f"❌ 댓글 내용에 부적절한 단어({bad_w})가 있습니다.")
                             else:
-                                post["comments"].append({
-                                    "author": st.session_state.user_name,
-                                    "text": comment_text
-                                })
+                                post["comments"].append({"author": st.session_state.user_name, "text": comment_text})
                                 save_data(COMMUNITY_FILE, community)
                                 st.rerun()
 
@@ -668,16 +590,13 @@ else:
             for p_idx, poll in enumerate(community["polls"]):
                 is_closed = poll.get("is_closed", False)
                 st.write(f"#### ❓ 주제: {poll['title']}")
-                
                 if is_closed:
                     st.error("📥 본 투표는 마감되었습니다.")
-                    for opt, val in poll["votes"].items():
-                        st.write(f"✔️ **{opt}** : {val}표")
+                    for opt, val in poll["votes"].items(): st.write(f"✔️ **{opt}** : {val}표")
                 else:
                     if st.session_state.user_id in poll["voted_users"]:
                         st.warning("이미 투표에 참여하셨습니다!")
-                        for opt, val in poll["votes"].items():
-                            st.write(f"✔️ **{opt}** : {val}표")
+                        for opt, val in poll["votes"].items(): st.write(f"✔️ **{opt}** : {val}표")
                     else:
                         selected_opt = st.radio("보기를 선택하세요", poll["options"], key=f"poll_select_{p_idx}")
                         if st.button("투표 제출하기", key=f"poll_btn_{p_idx}"):
