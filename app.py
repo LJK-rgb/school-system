@@ -12,23 +12,32 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- 🎨 [2] 우상단 메뉴, 하단 Footer, 우하단 'Hosted with Streamlit' 완벽 박멸 ---
+# --- 🎨 [2] 우상단 프로필, 메뉴, 하단 Footer, 우하단 버튼 완벽 박멸 ---
 st.markdown(
     """
     <style>
-        /* 1. 우상단 햄버거 메뉴 및 배포(Deploy) 헤더 완전 차단 */
-        #MainMenu {visibility: hidden !important;}
-        header {visibility: hidden !important;}
+        /* 1. 오른쪽 위 제작자 프로필 아이콘, 햄버거 메뉴, 배포 버튼 전체 영역 보이지 않게 처리 */
+        #MainMenu {visibility: hidden !important; display: none !important;}
+        header {visibility: hidden !important; display: none !important;}
+        [data-testid="stToolbar"] {visibility: hidden !important; display: none !important;}
+        [data-testid="stDecoration"] {visibility: hidden !important; display: none !important;}
+        [data-testid="stStatusWidget"] {visibility: hidden !important; display: none !important;}
         
-        /* 2. 하단 기본 Footer 제거 */
-        footer {visibility: hidden !important;}
+        /* 2. 유저 프로필 아바타 및 설정 톱니바퀴 등 상단 툴바 요소 강제 삭제 */
+        .stAppDeployButton, .stAppHeader, div[class*="stToolbar"], div[class*="profile"] {
+            display: none !important;
+            visibility: hidden !important;
+        }
         
-        /* 3. 모바일/태블릿 상단 여백 보정 */
+        /* 3. 하단 기본 Footer 제거 */
+        footer {visibility: hidden !important; display: none !important;}
+        
+        /* 4. 상단 메뉴가 사라져서 생기는 여백을 모바일/태블릿에 맞게 보정 */
         .block-container {
-            padding-top: 2rem;
+            padding-top: 1rem !important;
         }
 
-        /* 4. 우측 하단 플로팅 툴바 영역 (Hosted with Streamlit 호스팅 버튼) 무조건 화면 밖으로 퇴출 */
+        /* 5. 우측 하단 플로팅 툴바 영역 무조건 화면 밖으로 퇴출 */
         div[data-testid="stConnectionStatus"],
         div[class*="stDeployButton"],
         div[class*="viewerBadge"],
@@ -49,14 +58,12 @@ st.markdown(
     </style>
     
     <script>
-        /* 5. 0.05초마다 페이지 전체를 정밀 스캔하여 'Streamlit' 텍스트가 박힌 모든 우하단 팝업 배너 제거 */
+        /* 6. 스크립트를 통한 실시간 잔여 프로필/메뉴 오버레이 컴포넌트 파기 */
         setInterval(function() {
-            // 태그 종류 상관없이 'Streamlit' 문구가 포함된 배너/버튼 클래스 추적
             var elements = document.querySelectorAll('div, button, a, iframe, span');
             elements.forEach(function(el) {
                 var text = el.textContent || el.innerText || "";
                 if (text.includes("Hosted with Streamlit") || text.includes("Manage app") || text.includes("Created by")) {
-                    // 상위 컨테이너까지 엮어서 동시 소멸
                     var parentNode = el.closest('div[class*="viewerBadge"]') || el.closest('div[class*="stActionButton"]') || el;
                     parentNode.style.display = 'none';
                     parentNode.style.visibility = 'hidden';
@@ -64,10 +71,11 @@ st.markdown(
                 }
             });
             
-            // 쉐도우 돔(Shadow DOM) 내부나 프레임 구조까지 우회 차단
-            var hostBadge = document.querySelector('.viewerBadge') || document.querySelector('[data-testid="stViewerActionButton"]');
-            if (hostBadge) {
-                hostBadge.remove();
+            // 상단 우측에 둥둥 떠 있는 확장 메뉴 툴바 자르기
+            var toolbar = document.querySelector('[data-testid="stToolbar"]') || document.querySelector('header');
+            if (toolbar) {
+                toolbar.style.display = 'none';
+                toolbar.remove();
             }
         }, 50);
     </script>
