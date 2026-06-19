@@ -12,18 +12,36 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- 🎨 [2] 우상단 프로필, 메뉴, 하단 Footer, 우하단 버튼 완벽 박멸 ---
+# --- 🎨 [2] 학교 전경 배경화면 설정 & 프로필, 배너, 툴바 완벽 박멸 ---
 st.markdown(
     """
     <style>
-        /* 1. 오른쪽 위 제작자 프로필 아이콘, 햄버거 메뉴, 배포 버튼 전체 영역 보이지 않게 처리 */
+        /* [배경화면] 한국교원대학교부설고등학교 전경 배경 및 가독성 래퍼 설정 */
+        .stApp {
+            background-image: linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.85)), 
+                              url('https://t1.daumcdn.net/cfile/tistory/2115B13A53AB485A04');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+        }
+
+        /* 메인 콘텐츠 상자 가독성 높이기 (어두운 모드 대비 글자색 조정) */
+        h1, h2, h3, h4, p, span, label {
+            color: #0f172a !important;
+        }
+        .stMarkdown div p {
+            color: #0f172a !important;
+        }
+        
+        /* 1. 우상단 햄버거 메뉴, 헤더, 배포 단추 강제 삭제 */
         #MainMenu {visibility: hidden !important; display: none !important;}
         header {visibility: hidden !important; display: none !important;}
         [data-testid="stToolbar"] {visibility: hidden !important; display: none !important;}
         [data-testid="stDecoration"] {visibility: hidden !important; display: none !important;}
         [data-testid="stStatusWidget"] {visibility: hidden !important; display: none !important;}
         
-        /* 2. 유저 프로필 아바타 및 설정 톱니바퀴 등 상단 툴바 요소 강제 삭제 */
+        /* 2. 유저 프로필 아바타 툴바 영역 영구 제거 */
         .stAppDeployButton, .stAppHeader, div[class*="stToolbar"], div[class*="profile"] {
             display: none !important;
             visibility: hidden !important;
@@ -32,19 +50,20 @@ st.markdown(
         /* 3. 하단 기본 Footer 제거 */
         footer {visibility: hidden !important; display: none !important;}
         
-        /* 4. 상단 메뉴가 사라져서 생기는 여백을 모바일/태블릿에 맞게 보정 */
+        /* 4. 상단 레이아웃 여백 보정 */
         .block-container {
-            padding-top: 1rem !important;
+            padding-top: 2rem !important;
         }
 
-        /* 5. 우측 하단 플로팅 툴바 영역 무조건 화면 밖으로 퇴출 */
+        /* 5. 우측 하단 Created by 프로필 뱃지 및 Hosted with Streamlit 버튼 흔적 차단 */
         div[data-testid="stConnectionStatus"],
         div[class*="stDeployButton"],
         div[class*="viewerBadge"],
         div[class*="stActionButton"],
         iframe[title="Manage app"],
         button[title="Manage app"],
-        [data-testid="stViewerActionButton"] {
+        [data-testid="stViewerActionButton"],
+        div[class*="viewerContainer"] {
             display: none !important;
             visibility: hidden !important;
             opacity: 0 !important;
@@ -58,26 +77,24 @@ st.markdown(
     </style>
     
     <script>
-        /* 6. 스크립트를 통한 실시간 잔여 프로필/메뉴 오버레이 컴포넌트 파기 */
+        /* 6. DOM 렌더링 지연으로 인해 살아남는 프로필 및 배너 요소를 0.03초 간격으로 추적 파괴 */
         setInterval(function() {
-            var elements = document.querySelectorAll('div, button, a, iframe, span');
+            var elements = document.querySelectorAll('div, button, a, iframe, span, img');
             elements.forEach(function(el) {
                 var text = el.textContent || el.innerText || "";
-                if (text.includes("Hosted with Streamlit") || text.includes("Manage app") || text.includes("Created by")) {
-                    var parentNode = el.closest('div[class*="viewerBadge"]') || el.closest('div[class*="stActionButton"]') || el;
+                // 배너 문구 타겟팅
+                if (text.includes("Hosted with Streamlit") || text.includes("Manage app") || text.includes("Created by") || text.includes("ljk-rgb")) {
+                    var parentNode = el.closest('div[class*="viewerBadge"]') || el.closest('div[class*="stActionButton"]') || el.parentElement || el;
                     parentNode.style.display = 'none';
                     parentNode.style.visibility = 'hidden';
                     parentNode.remove();
                 }
             });
             
-            // 상단 우측에 둥둥 떠 있는 확장 메뉴 툴바 자르기
+            // 툴바 엘리먼트 강제 파기
             var toolbar = document.querySelector('[data-testid="stToolbar"]') || document.querySelector('header');
-            if (toolbar) {
-                toolbar.style.display = 'none';
-                toolbar.remove();
-            }
-        }, 50);
+            if (toolbar) { toolbar.remove(); }
+        }, 30);
     </script>
     """,
     unsafe_allow_html=True
@@ -93,13 +110,11 @@ PDF_FILE = "2025. 학생생활규정.pdf"
 BAD_WORDS = ["바보", "멍청이", "지랄", "존나", "개새끼", "시발", "새끼", "미친"]
 
 def check_bad_words(text):
-    """텍스트에 금지어가 포함되어 있는지 확인하는 함수"""
     for word in BAD_WORDS:
         if word in text:
             return False, word
     return True, ""
 
-# --- 데이터 입출력 함수 ---
 def load_data(filepath):
     if os.path.exists(filepath):
         with open(filepath, "r", encoding="utf-8") as f:
@@ -110,7 +125,6 @@ def save_data(filepath, data):
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-# --- PDF 텍스트 추출 및 구조화 검색 함수 ---
 @st.cache_resource
 def load_pdf_text(filepath):
     if not os.path.exists(filepath):
@@ -161,7 +175,6 @@ chats = load_data(CHAT_FILE)
 community = load_data(COMMUNITY_FILE)
 pdf_content = load_pdf_text(PDF_FILE)
 
-# 데이터 구조 초기화 및 방어 코드
 if "posts" not in community: community["posts"] = []
 if "polls" not in community: community["polls"] = []
 if "notice" not in community: community["notice"] = "아직 등록된 공지사항이 없습니다."
@@ -170,7 +183,6 @@ if "notice_time" not in community: community["notice_time"] = ""
 if "notice_likes" not in community: community["notice_likes"] = []
 if "notice_comments" not in community: community["notice_comments"] = []
 
-# 최고 관리자 계정 정보 강제 동기화
 users["admin"] = {
     "password": "ahsknue2026_2026!", 
     "name": "최고관리자", 
@@ -178,7 +190,6 @@ users["admin"] = {
 }
 save_data(USER_FILE, users)
 
-# 스트림릿 앱 상태 초기화
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.user_id = None
@@ -267,25 +278,20 @@ else:
         st.session_state.role = "user"
         st.rerun()
 
-    # ==================== [[ ⚙️ 관리자 전용 사이드바 창 ]] ====================
     if st.session_state.role in ["master_admin", "sub_admin"]:
         st.sidebar.markdown("---")
         st.sidebar.markdown("### 🛠️ 관리자 전용 메뉴")
         
         admin_menu = ["🔍 전체 계정 관리", "📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 로그", "🔥 최다 질문 통계"]
-        
         if st.session_state.role == "sub_admin":
             admin_menu.append("🏛️ 학생 커뮤니티 보기")
             admin_menu.append("📊 실시간 투표존 보기")
-            
         if st.session_state.role == "master_admin":
             admin_menu.append("➕ 일반 관리자 계정 생성")
             
         sub_choice = st.sidebar.radio("제어할 기능을 선택하세요", admin_menu)
-
         st.subheader(f"⚙️ 관리 제어판 -> {sub_choice}")
 
-        # ---- 🔍 전체 계정 관리 패널 ----
         if sub_choice == "🔍 전체 계정 관리":
             st.write("#### 👤 교내 멤버 정보 검색 및 수정/삭제")
             search_uid = st.text_input("🔍 학번 또는 관리자 ID 입력 검색 (빈칸이면 전체 조회)", placeholder="예: 10101 또는 교사ID")
@@ -329,7 +335,6 @@ else:
                                 st.warning(f"{u_id} 계정이 파기되었습니다.")
                                 st.rerun()
 
-        # ---- 📢 공지 및 투표 관리 패널 ----
         elif sub_choice == "📢 공지 및 투표 관리":
             st.write("#### 1. 대시보드 공지사항 제어")
             new_notice = st.text_area("수정할 공지사항 내용", value=community["notice"])
@@ -404,11 +409,8 @@ else:
                             st.success("투표가 삭제되었습니다.")
                             st.rerun()
 
-        # ---- 🏛️ 커뮤니티 게시글 관리 패널 ----
         elif sub_choice == "🏛️ 커뮤니티 게시글 관리":
             st.write("#### 🚨 학생 커뮤니티 전체 게시물 관리")
-            st.caption("게시글 파기뿐만 아니라 특정 댓글 삭제 및 악의적인 공감수(좋아요) 강제 초기화 제어가 가능합니다.")
-            
             if not community["posts"]:
                 st.info("현재 대나무숲에 등록된 글이 없습니다.")
             else:
@@ -432,19 +434,16 @@ else:
                                 st.rerun()
                         
                         if post["comments"]:
-                            st.markdown("<p style='font-size:13px; font-weight:bold; color:#555; margin-top:8px;'>▼ 댓글 내역 리스트 제어</p>", unsafe_allow_html=True)
                             for c_idx, comment in enumerate(post["comments"]):
                                 c_col1, c_col2 = st.columns([4, 1])
                                 with c_col1:
                                     st.caption(f"↳ **{comment['author']}**: {comment['text']}")
                                 with c_col2:
-                                    if st.button("🗑️ 댓글 삭제", key=f"del_cmt_{idx}_{c_idx}"):
+                                    if st.button("🗑️ 삭제", key=f"del_cmt_{idx}_{c_idx}"):
                                         community["posts"][idx]["comments"].pop(c_idx)
                                         save_data(COMMUNITY_FILE, community)
-                                        st.warning("선택한 댓글이 삭제되었습니다.")
                                         st.rerun()
-                                        
-                        st.markdown("<hr style='margin: 12px 0 24px 0; border-top: 1px dashed #ccc;'>", unsafe_allow_html=True)
+                        st.markdown("<hr>", unsafe_allow_html=True)
 
         elif sub_choice == "💬 학생 질문 로그":
             st.write("#### 📋 학생별 규정집 실시간 질문 로그")
@@ -477,39 +476,29 @@ else:
                     st.write(f"🥇 **{rank}위** : `{word}` (총 {cnt}회 조회)")
 
         elif sub_choice == "🏛️ 학생 커뮤니티 보기":
-            st.write("### 🏛️ 익명/실명 학생 대나무숲 (일반 관리자 모니터링 뷰)")
             if not community["posts"]:
                 st.info("현재 대나무숲에 등록된 게시글이 없습니다.")
             else:
                 for idx, post in enumerate(community["posts"]):
                     st.markdown(f"👤 **{post['author']}**")
                     st.info(post["content"])
-                    st.write(f"❤️ 공감 {len(post['likes'])}개 | 💬 댓글 {len(post['comments'])}개")
-                    for comment in post["comments"]:
-                        st.write(f"↳ **{comment['author']}**: {comment['text']}")
                     st.markdown("---")
 
         elif sub_choice == "📊 실시간 투표존 보기":
-            st.write("### 📊 실시간 학생 투표광장 (일반 관리자 모니터링 뷰)")
             if not community["polls"]:
                 st.info("현재 개설된 투표가 없습니다.")
             else:
                 for p_idx, poll in enumerate(community["polls"]):
                     status_label = "🔒 [마감됨]" if poll.get("is_closed", False) else "🔓 [진행중]"
                     st.write(f"#### {status_label} 주제: {poll['title']}")
-                    st.markdown("**📊 실시간 투표 현황 집계:**")
                     for opt, val in poll["votes"].items():
                         st.write(f"✔️ **{opt}** : {val}표")
-                    for p_comment in poll.get("comments", []):
-                        st.write(f"↳ **{p_comment['author']}**: {p_comment['text']}")
                     st.markdown("---")
 
         elif sub_choice == "➕ 일반 관리자 계정 생성":
-            st.write("#### 🛡️ 신규 일반 관리자(General Admin) 계정 발급")
             sub_id = st.text_input("일반 관리자용 로그인 ID")
             sub_name = st.text_input("일반 관리자 담당자 이름")
             sub_pw = st.text_input("일반 관리자용 비밀번호", type="password")
-            
             if st.button("일반 관리자 계정 등록"):
                 if not sub_id or not sub_name or not sub_pw:
                     st.error("빈칸 없이 모두 입력해 주세요.")
@@ -523,14 +512,13 @@ else:
     # ==================== [[ 학생 / 사용자 전용 일반 메인 화면 ]] ====================
     else:
         time_label = f" ({community['notice_time']})" if community["notice_time"] else ""
-        st.markdown(f"📢 **학교 공지사항** <span style='font-size:12px; color:#777;'>[작성자: {community['notice_author']}{time_label}]</span>", unsafe_allow_html=True)
+        st.markdown(f"📢 **학교 공지사항**", unsafe_allow_html=True)
         st.info(community['notice'])
         
         with st.expander(f"💬 공지사항 반응 남기기 (❤️ {len(community['notice_likes'])} | 댓글 {len(community['notice_comments'])}개)"):
             col_n_like, _ = st.columns([1, 4])
             with col_n_like:
-                notice_like_label = f"❤️ 공감 {len(community['notice_likes'])}"
-                if st.button(notice_like_label, key="notice_like_btn"):
+                if st.button(f"❤️ 공감 {len(community['notice_likes'])}", key="notice_like_btn"):
                     if st.session_state.user_id in community["notice_likes"]:
                         community["notice_likes"].remove(st.session_state.user_id)
                     else:
@@ -542,12 +530,12 @@ else:
                 st.write(f"↳ **{n_cmt['author']}**: {n_cmt['text']}")
             
             with st.form("notice_comment_form", clear_on_submit=True):
-                n_comment_text = st.text_input("공지사항에 댓글 남기기", placeholder="공지 내용을 확인했다면 댓글을 달아주세요.")
+                n_comment_text = st.text_input("공지사항에 댓글 남기기")
                 if st.form_submit_button("공지 댓글 등록"):
                     if n_comment_text:
                         is_clean, bad_w = check_bad_words(n_comment_text)
                         if not is_clean:
-                            st.error(f"❌ 댓글에 부적절한 단어({bad_w})가 포함되어 등록할 수 없습니다.")
+                            st.error(f"❌ 댓글에 부적절한 단어({bad_w})가 포함되었습니다.")
                         else:
                             community["notice_comments"].append({
                                 "author": st.session_state.user_name,
@@ -559,42 +547,30 @@ else:
         st.write("---")
         tab1, tab2, tab3 = st.tabs(["🤖 규정 질문 챗봇", "🏛️ 학생 소통 커뮤니티", "📊 실시간 투표존"])
 
-        # ---- 탭 1: 규정 질문 챗봇 ----
         with tab1:
             st.write("### 🤖 학교 생활 규정집 검색기")
-            st.caption("질문 단어를 입력하고 버튼을 누르면 해당 키워드가 들어있는 정확한 '조·항'을 찾아 형광펜 표시해 줍니다.")
-            st.info("🔥 **학생들이 가장 많이 찾은 단어** : `두발`, `휴대폰`, `지각`, `복장`")
-            
             user_query = st.text_input("궁금한 규정 키워드를 입력하세요 (예: 두발 규정):", key="chatbot_query")
-            
             if st.button("🔎 규정집 실시간 검색하기"):
                 if user_query:
                     answer_html = search_pdf_with_highlight(user_query, pdf_content)
                     st.markdown(answer_html, unsafe_allow_html=True)
-
                     if st.session_state.user_id not in chats:
                         chats[st.session_state.user_id] = []
-                    
                     chats[st.session_state.user_id].append({
                         "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        "query": user_query,
-                        "answer": "검색 완료(HTML 표출)"
+                        "query": user_query
                     })
                     save_data(CHAT_FILE, chats)
 
-        # ---- 탭 2: 커뮤니티 ----
         with tab2:
             st.write("### 🏛️ 익명/실명 학생 대나무숲")
-            
             with st.form("community_form", clear_on_submit=True):
-                post_content = st.text_area("학교 생활이나 궁금한 점을 자유롭게 이야기해 보세요!", placeholder="매너를 지켜 글을 작성해 주세요.")
+                post_content = st.text_area("학교 생활이나 궁금한 점을 자유롭게 이야기해 보세요!")
                 is_anonymous = st.checkbox("익명으로 올리기")
-                submit_post = st.form_submit_button("게시글 올리기")
-                
-                if submit_post and post_content:
+                if st.form_submit_button("게시글 올리기") and post_content:
                     is_clean, bad_w = check_bad_words(post_content)
                     if not is_clean:
-                        st.error(f"❌ 작성하신 내용에 부적절한 단어({bad_w})가 포함되어 게시할 수 없습니다. 바른 말을 사용해 주세요!")
+                        st.error(f"❌ 부적절한 단어({bad_w})가 포함되어 있습니다.")
                     else:
                         author_name = "익명의 새내기" if is_anonymous else st.session_state.user_name
                         community["posts"].insert(0, {
@@ -605,111 +581,59 @@ else:
                             "comments": []
                         })
                         save_data(COMMUNITY_FILE, community)
-                        st.success("글이 정상적으로 등록되었습니다!")
                         st.rerun()
 
             st.write("---")
-            if not community["posts"]:
-                st.info("가장 먼저 첫 게시글의 주인공이 되어보세요!")
-            else:
-                for idx, post in enumerate(community["posts"]):
-                    st.markdown(f"👤 **{post['author']}**")
-                    st.info(post["content"])
-                    
-                    col1, col2 = st.columns([1, 5])
-                    with col1:
-                        like_label = f"❤️ {len(post['likes'])}"
-                        if st.button(like_label, key=f"like_{idx}"):
-                            if st.session_state.user_id in post["likes"]:
-                                post["likes"].remove(st.session_state.user_id)
-                            else:
-                                post["likes"].append(st.session_state.user_id)
-                            save_data(COMMUNITY_FILE, community)
-                            st.rerun()
-                            
-                    with st.expander(f"💬 댓글 ({len(post['comments'])}개) 열기"):
-                        for comment in post["comments"]:
-                            st.write(f"↳ **{comment['author']}**: {comment['text']}")
+            for idx, post in enumerate(community["posts"]):
+                st.markdown(f"👤 **{post['author']}**")
+                st.info(post["content"])
+                
+                col1, _ = st.columns([1, 5])
+                with col1:
+                    if st.button(f"❤️ {len(post['likes'])}", key=f"like_{idx}"):
+                        if st.session_state.user_id in post["likes"]:
+                            post["likes"].remove(st.session_state.user_id)
+                        else:
+                            post["likes"].append(st.session_state.user_id)
+                        save_data(COMMUNITY_FILE, community)
+                        st.rerun()
                         
-                        with st.form(f"comment_form_{idx}", clear_on_submit=True):
-                            comment_text = st.text_input("댓글 쓰기", placeholder="따뜻한 댓글을 남겨주세요.")
-                            if st.form_submit_button("등록"):
-                                if comment_text:
-                                    is_clean, bad_w = check_bad_words(comment_text)
-                                    if not is_clean:
-                                        st.error(f"❌ 댓글 내용에 부적절한 단어({bad_w})가 포함되어 있습니다.")
-                                    else:
-                                        post["comments"].append({
-                                            "author": st.session_state.user_name,
-                                            "text": comment_text
-                                        })
-                                        save_data(COMMUNITY_FILE, community)
-                                        st.rerun()
-                    st.markdown("---")
+                with st.expander(f"💬 댓글 ({len(post['comments'])}개) 열기"):
+                    for comment in post["comments"]:
+                        st.write(f"↳ **{comment['author']}**: {comment['text']}")
+                    with st.form(f"comment_form_{idx}", clear_on_submit=True):
+                        comment_text = st.text_input("댓글 쓰기")
+                        if st.form_submit_button("등록") and comment_text:
+                            is_clean, bad_w = check_bad_words(comment_text)
+                            if not is_clean:
+                                st.error(f"❌ 댓글 내용에 부적절한 단어({bad_w})가 있습니다.")
+                            else:
+                                post["comments"].append({
+                                    "author": st.session_state.user_name,
+                                    "text": comment_text
+                                })
+                                save_data(COMMUNITY_FILE, community)
+                                st.rerun()
 
-        # ---- 탭 3: 실시간 투표존 ----
         with tab3:
             st.write("### 📊 실시간 학생 투표광장")
-            if not community["polls"]:
-                st.info("현재 진행 중인 학생 투표가 없습니다. 관리자의 새로운 투표를 기다려주세요!")
-            else:
-                for p_idx, poll in enumerate(community["polls"]):
-                    if "is_closed" not in poll: poll["is_closed"] = False
-                    if "likes" not in poll: poll["likes"] = []
-                    if "comments" not in poll: poll["comments"] = []
-                    
-                    is_closed = poll["is_closed"]
-                    st.write(f"#### ❓ 주제: {poll['title']}")
-                    
-                    if is_closed:
-                        st.error("📥 본 투표는 관리자에 의해 마감되었습니다. 더 이상 투표를 제출하거나 수정할 수 없습니다.")
-                        st.markdown("**📊 최종 투표 집계 결과:**")
+            for p_idx, poll in enumerate(community["polls"]):
+                is_closed = poll.get("is_closed", False)
+                st.write(f"#### ❓ 주제: {poll['title']}")
+                
+                if is_closed:
+                    st.error("📥 본 투표는 마감되었습니다.")
+                    for opt, val in poll["votes"].items():
+                        st.write(f"✔️ **{opt}** : {val}표")
+                else:
+                    if st.session_state.user_id in poll["voted_users"]:
+                        st.warning("이미 투표에 참여하셨습니다!")
                         for opt, val in poll["votes"].items():
                             st.write(f"✔️ **{opt}** : {val}표")
                     else:
-                        if st.session_state.user_id in poll["voted_users"]:
-                            st.warning("이미 투표에 참여하셨습니다! 실시간 집계 결과:")
-                            for opt, val in poll["votes"].items():
-                                st.write(f"✔️ **{opt}** : {val}표")
-                        else:
-                            selected_opt = st.radio("보기를 선택하세요", poll["options"], key=f"poll_select_{p_idx}")
-                            if st.button("투표 제출하기", key=f"poll_btn_{p_idx}"):
-                                poll["votes"][selected_opt] += 1
-                                poll["voted_users"].append(st.session_state.user_id)
-                                save_data(COMMUNITY_FILE, community)
-                                st.success("투표가 성공적으로 반영되었습니다!")
-                                st.rerun()
-                    
-                    col_pl, _ = st.columns([1, 4])
-                    with col_pl:
-                        p_like_label = f"❤️ {len(poll['likes'])}"
-                        if st.button(p_like_label, key=f"poll_like_{p_idx}", disabled=is_closed):
-                            if st.session_state.user_id in poll["likes"]:
-                                poll["likes"].remove(st.session_state.user_id)
-                            else:
-                                poll["likes"].append(st.session_state.user_id)
+                        selected_opt = st.radio("보기를 선택하세요", poll["options"], key=f"poll_select_{p_idx}")
+                        if st.button("투표 제출하기", key=f"poll_btn_{p_idx}"):
+                            poll["votes"][selected_opt] += 1
+                            poll["voted_users"].append(st.session_state.user_id)
                             save_data(COMMUNITY_FILE, community)
                             st.rerun()
-                            
-                    with st.expander(f"💬 투표 댓글 ({len(poll['comments'])}개) 보기"):
-                        for p_comment in poll["comments"]:
-                            st.write(f"↳ **{p_comment['author']}**: {p_comment['text']}")
-                        
-                        if is_closed:
-                            st.caption("🔒 투표가 마감되어 댓글 작성이 제한됩니다.")
-                        else:
-                            with st.form(f"poll_cmt_form_{p_idx}", clear_on_submit=True):
-                                p_comment_text = st.text_input("투표에 한마디 남기기", placeholder="투표 안건에 대한 본인의 생각을 공유해 주세요.")
-                                if st.form_submit_button("댓글 등록"):
-                                    if p_comment_text:
-                                        is_clean, bad_w = check_bad_words(p_comment_text)
-                                        if not is_clean:
-                                            st.error(f"❌ 한마디 내용에 부적절한 단어({bad_w})가 포함되어 있습니다.")
-                                        else:
-                                            poll["comments"].append({
-                                                "author": st.session_state.user_name,
-                                                "text": p_comment_text
-                                            })
-                                            save_data(COMMUNITY_FILE, community)
-                                            st.rerun()
-                    st.markdown("---")
