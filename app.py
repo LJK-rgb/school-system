@@ -12,55 +12,75 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- 🎨 [2] 강력한 UI 스타일 교정 및 우하단 배너/프로필 박멸 ---
+# --- 🎨 [2] 다크 모드 원복 & 파란색 포인트 지정 & 우하단 배너 완벽 제거 ---
 st.markdown(
     """
     <style>
-        /* 1. 학교 전경 배경화면 부드럽게 고정 */
+        /* 1. 기본 배경 검은색 다크 모드로 완벽 원복 */
         .stApp {
-            background: linear-gradient(rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.8)), 
-                        url('https://t1.daumcdn.net/cfile/tistory/2115B13A53AB485A04') no-repeat center center fixed;
-            background-size: cover;
+            background-color: #0e1117 !important;
         }
 
-        /* 2. 검은색 전면 오버레이 현상 차단 및 글자색 강제 수정 */
+        /* 2. 글자색 화이트 톤으로 최적화 */
         h1, h2, h3, h4, p, span, label, li {
-            color: #1e293b !important;
-            font-weight: 500 !important;
+            color: #ffffff !important;
         }
         .stMarkdown div p {
-            color: #1e293b !important;
-        }
-
-        /* 3. 입력창(TextInput) 내부 글씨가 안 보이는 현상 수정 */
-        input[type="text"], input[type="password"], textarea {
-            color: #0f172a !important;
-            background-color: #ffffff !important;
-            border: 1px solid #cbd5e1 !important;
-        }
-
-        /* 4. 로그인하기 버튼 및 모든 버튼 가독성 확보 (네이비 배경 + 흰색 글씨) */
-        .stButton>button {
-            background-color: #1e3a8a !important;
             color: #ffffff !important;
-            border-radius: 8px !important;
+        }
+
+        /* 3. [요청사항] 왼쪽 사이드바 메뉴 영역 전체 파란색 톤 스타일링 */
+        [data-testid="stSidebar"] {
+            background-color: #1e293b !important; /* 사이드바 배경 진한 네이비 */
+            border-right: 2px solid #1d4ed8 !important; /* 사이드바 경계선 파란색 */
+        }
+        /* 사이드바 내부 라디오 버튼 선택 항목 파란색 포인트 강조 */
+        [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {
+            background-color: #0f172a !important;
+            border: 1px solid #334155 !important;
+            padding: 8px 12px !important;
+            border-radius: 6px !important;
+            margin-bottom: 6px !important;
+            transition: all 0.2s ease;
+        }
+        [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:hover {
+            border-color: #1d4ed8 !important;
+            background-color: #1e3a8a !important;
+        }
+        /* 사이드바 텍스트 색상 고정 */
+        [data-testid="stSidebar"] h3, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span {
+            color: #ffffff !important;
+        }
+
+        /* 4. [요청사항] 로그인하기 및 모든 버튼 선명한 파란색(Blue) 적용 */
+        .stButton>button {
+            background-color: #1d4ed8 !important;
+            color: #ffffff !important;
+            border-radius: 6px !important;
             border: none !important;
             font-weight: bold !important;
             transition: all 0.2s ease;
         }
         .stButton>button:hover {
-            background-color: #1d4ed8 !important;
+            background-color: #2563eb !important;
             color: #ffffff !important;
-            transform: scale(1.01);
+            box-shadow: 0px 0px 8px rgba(37, 99, 235, 0.6);
         }
 
-        /* 5. 스트림릿 상단/하단 기본 컴포넌트 CSS 원천 차단 */
+        /* 5. 입력창 테두리 가독성 확보 */
+        input[type="text"], input[type="password"], textarea {
+            color: #ffffff !important;
+            background-color: #1f2937 !important;
+            border: 1px solid #4b5563 !important;
+        }
+
+        /* 6. 스트림릿 상단 툴바 및 기본 푸터 기본 컴포넌트 숨김 */
         #MainMenu, header, footer {visibility: hidden !important; display: none !important;}
         [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stStatusWidget"] {
             display: none !important; visibility: hidden !important;
         }
 
-        /* 6. 우하단 호스트 배너 및 프로필 영역 CSS 강제 은폐 */
+        /* 7. 우하단 호스트 배너 껍데기 레이아웃 강제 차단 */
         div[class*="viewerBadge"], 
         div[class*="stActionButton"], 
         iframe[title="Manage app"], 
@@ -76,25 +96,25 @@ st.markdown(
     </style>
     
     <script>
-        /* 7. [핵심] 0.01초 간격으로 우하단 배너 및 프로필 요소를 감지하여 HTML에서 즉시 영구 추방 */
-        const killBanner = setInterval(() => {
-            // 태그 텍스트 기준 검사 파괴
-            const allElements = document.querySelectorAll('div, button, a, iframe, span, img');
-            allElements.forEach((el) => {
+        /* 8. [강력화된 배너 폭파 스크립트] 0.01초 주기로 돌며 호스트 배너가 생성되는 즉시 뿌리째 삭제 */
+        const destroyBanner = setInterval(() => {
+            // 텍스트 기반 삭제
+            const elements = document.querySelectorAll('div, button, a, iframe, span, img');
+            elements.forEach((el) => {
                 const text = el.textContent || el.innerText || "";
                 if (text.includes("Hosted with Streamlit") || text.includes("Manage app") || text.includes("Created by") || text.includes("ljk-rgb")) {
                     const target = el.closest('div[class*="viewerBadge"]') || el.closest('div[class*="stActionButton"]') || el.parentElement || el;
-                    if (target) target.remove();
+                    if (target) { target.remove(); }
                 }
             });
 
-            // 클래스명 및 속성 기준 검사 파괴 (더 강한 강제 제거)
-            const badges = document.querySelectorAll('[class*="viewerBadge"], [class*="stActionButton"], iframe[title="Manage app"]');
-            badges.forEach(b => b.remove());
+            // 클래스 컴포넌트 강제 타겟 삭제
+            const liveBadges = document.querySelectorAll('[class*="viewerBadge"], [class*="stActionButton"], iframe[title="Manage app"]');
+            liveBadges.forEach(badge => badge.remove());
         }, 10);
 
-        // 10초 뒤에는 안정화를 위해 탐색 종료
-        setTimeout(() => clearInterval(killBanner), 10000);
+        // 앱 로딩 완료 이후 15초 뒤에 추적 종료
+        setTimeout(() => clearInterval(destroyBanner), 15000);
     </script>
     """,
     unsafe_allow_html=True
@@ -605,7 +625,7 @@ else:
                         if st.form_submit_button("등록") and comment_text:
                             is_clean, bad_w = check_bad_words(comment_text)
                             if not is_clean:
-                                        st.error(f"❌ 댓글 내용에 부적절한 단어({bad_w})가 있습니다.")
+                                st.error(f"❌ 댓글 내용에 부적절한 단어({bad_w})가 있습니다.")
                             else:
                                 post["comments"].append({
                                     "author": st.session_state.user_name,
