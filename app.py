@@ -12,89 +12,89 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- 🎨 [2] 학교 전경 배경화면 설정 & 프로필, 배너, 툴바 완벽 박멸 ---
+# --- 🎨 [2] 강력한 UI 스타일 교정 및 우하단 배너/프로필 박멸 ---
 st.markdown(
     """
     <style>
-        /* [배경화면] 한국교원대학교부설고등학교 전경 배경 및 가독성 래퍼 설정 */
+        /* 1. 학교 전경 배경화면 부드럽게 고정 */
         .stApp {
-            background-image: linear-gradient(rgba(255, 255, 255, 0.85), rgba(255, 255, 255, 0.85)), 
-                              url('https://t1.daumcdn.net/cfile/tistory/2115B13A53AB485A04');
+            background: linear-gradient(rgba(255, 255, 255, 0.8), rgba(255, 255, 255, 0.8)), 
+                        url('https://t1.daumcdn.net/cfile/tistory/2115B13A53AB485A04') no-repeat center center fixed;
             background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
         }
 
-        /* 메인 콘텐츠 상자 가독성 높이기 (어두운 모드 대비 글자색 조정) */
-        h1, h2, h3, h4, p, span, label {
-            color: #0f172a !important;
+        /* 2. 검은색 전면 오버레이 현상 차단 및 글자색 강제 수정 */
+        h1, h2, h3, h4, p, span, label, li {
+            color: #1e293b !important;
+            font-weight: 500 !important;
         }
         .stMarkdown div p {
-            color: #0f172a !important;
-        }
-        
-        /* 1. 우상단 햄버거 메뉴, 헤더, 배포 단추 강제 삭제 */
-        #MainMenu {visibility: hidden !important; display: none !important;}
-        header {visibility: hidden !important; display: none !important;}
-        [data-testid="stToolbar"] {visibility: hidden !important; display: none !important;}
-        [data-testid="stDecoration"] {visibility: hidden !important; display: none !important;}
-        [data-testid="stStatusWidget"] {visibility: hidden !important; display: none !important;}
-        
-        /* 2. 유저 프로필 아바타 툴바 영역 영구 제거 */
-        .stAppDeployButton, .stAppHeader, div[class*="stToolbar"], div[class*="profile"] {
-            display: none !important;
-            visibility: hidden !important;
-        }
-        
-        /* 3. 하단 기본 Footer 제거 */
-        footer {visibility: hidden !important; display: none !important;}
-        
-        /* 4. 상단 레이아웃 여백 보정 */
-        .block-container {
-            padding-top: 2rem !important;
+            color: #1e293b !important;
         }
 
-        /* 5. 우측 하단 Created by 프로필 뱃지 및 Hosted with Streamlit 버튼 흔적 차단 */
-        div[data-testid="stConnectionStatus"],
-        div[class*="stDeployButton"],
-        div[class*="viewerBadge"],
-        div[class*="stActionButton"],
-        iframe[title="Manage app"],
+        /* 3. 입력창(TextInput) 내부 글씨가 안 보이는 현상 수정 */
+        input[type="text"], input[type="password"], textarea {
+            color: #0f172a !important;
+            background-color: #ffffff !important;
+            border: 1px solid #cbd5e1 !important;
+        }
+
+        /* 4. 로그인하기 버튼 및 모든 버튼 가독성 확보 (네이비 배경 + 흰색 글씨) */
+        .stButton>button {
+            background-color: #1e3a8a !important;
+            color: #ffffff !important;
+            border-radius: 8px !important;
+            border: none !important;
+            font-weight: bold !important;
+            transition: all 0.2s ease;
+        }
+        .stButton>button:hover {
+            background-color: #1d4ed8 !important;
+            color: #ffffff !important;
+            transform: scale(1.01);
+        }
+
+        /* 5. 스트림릿 상단/하단 기본 컴포넌트 CSS 원천 차단 */
+        #MainMenu, header, footer {visibility: hidden !important; display: none !important;}
+        [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stStatusWidget"] {
+            display: none !important; visibility: hidden !important;
+        }
+
+        /* 6. 우하단 호스트 배너 및 프로필 영역 CSS 강제 은폐 */
+        div[class*="viewerBadge"], 
+        div[class*="stActionButton"], 
+        iframe[title="Manage app"], 
         button[title="Manage app"],
         [data-testid="stViewerActionButton"],
         div[class*="viewerContainer"] {
             display: none !important;
             visibility: hidden !important;
             opacity: 0 !important;
-            width: 0 !important;
-            height: 0 !important;
-            pointer-events: none !important;
             bottom: -9999px !important;
-            right: -9999px !important;
             position: absolute !important;
         }
     </style>
     
     <script>
-        /* 6. DOM 렌더링 지연으로 인해 살아남는 프로필 및 배너 요소를 0.03초 간격으로 추적 파괴 */
-        setInterval(function() {
-            var elements = document.querySelectorAll('div, button, a, iframe, span, img');
-            elements.forEach(function(el) {
-                var text = el.textContent || el.innerText || "";
-                // 배너 문구 타겟팅
+        /* 7. [핵심] 0.01초 간격으로 우하단 배너 및 프로필 요소를 감지하여 HTML에서 즉시 영구 추방 */
+        const killBanner = setInterval(() => {
+            // 태그 텍스트 기준 검사 파괴
+            const allElements = document.querySelectorAll('div, button, a, iframe, span, img');
+            allElements.forEach((el) => {
+                const text = el.textContent || el.innerText || "";
                 if (text.includes("Hosted with Streamlit") || text.includes("Manage app") || text.includes("Created by") || text.includes("ljk-rgb")) {
-                    var parentNode = el.closest('div[class*="viewerBadge"]') || el.closest('div[class*="stActionButton"]') || el.parentElement || el;
-                    parentNode.style.display = 'none';
-                    parentNode.style.visibility = 'hidden';
-                    parentNode.remove();
+                    const target = el.closest('div[class*="viewerBadge"]') || el.closest('div[class*="stActionButton"]') || el.parentElement || el;
+                    if (target) target.remove();
                 }
             });
-            
-            // 툴바 엘리먼트 강제 파기
-            var toolbar = document.querySelector('[data-testid="stToolbar"]') || document.querySelector('header');
-            if (toolbar) { toolbar.remove(); }
-        }, 30);
+
+            // 클래스명 및 속성 기준 검사 파괴 (더 강한 강제 제거)
+            const badges = document.querySelectorAll('[class*="viewerBadge"], [class*="stActionButton"], iframe[title="Manage app"]');
+            badges.forEach(b => b.remove());
+        }, 10);
+
+        // 10초 뒤에는 안정화를 위해 탐색 종료
+        setTimeout(() => clearInterval(killBanner), 10000);
     </script>
     """,
     unsafe_allow_html=True
@@ -511,7 +511,6 @@ else:
 
     # ==================== [[ 학생 / 사용자 전용 일반 메인 화면 ]] ====================
     else:
-        time_label = f" ({community['notice_time']})" if community["notice_time"] else ""
         st.markdown(f"📢 **학교 공지사항**", unsafe_allow_html=True)
         st.info(community['notice'])
         
@@ -606,7 +605,7 @@ else:
                         if st.form_submit_button("등록") and comment_text:
                             is_clean, bad_w = check_bad_words(comment_text)
                             if not is_clean:
-                                st.error(f"❌ 댓글 내용에 부적절한 단어({bad_w})가 있습니다.")
+                                        st.error(f"❌ 댓글 내용에 부적절한 단어({bad_w})가 있습니다.")
                             else:
                                 post["comments"].append({
                                     "author": st.session_state.user_name,
