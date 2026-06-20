@@ -71,7 +71,7 @@ def save_data(filepath, data):
     with open(filepath, "w", encoding="utf-8") as f: 
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-# 🚨 [중요] community.json 로드 시 KeyError 방지를 위한 구조 강제화 함수
+# community.json 로드 시 KeyError 방지를 위한 구조 강제화 함수
 def load_community_safe():
     data = load_data(COMMUNITY_FILE)
     if not isinstance(data, dict): data = {}
@@ -203,7 +203,7 @@ if not st.session_state.logged_in:
         new_pw = st.text_input("비밀번호", type="password", key="join_pw_main")
         if st.button("가입하기", use_container_width=True):
             if new_id and new_name and new_pw:
-                users = load_data(USER_FILE) # 유저 보존용 실시간 다시읽기
+                users = load_data(USER_FILE)
                 users[new_id] = {"password": new_pw, "name": new_name, "role": "user"}
                 save_data(USER_FILE, users)
                 st.success("🎉 회원가입 성공! 로그인 탭으로 이동해 주세요.")
@@ -232,7 +232,7 @@ else:
         def admin_dashboard(choice):
             current_users = load_data(USER_FILE)
             current_chats = load_data(CHAT_FILE)
-            current_community = load_community_safe() # KeyError 차단 안전 로드
+            current_community = load_community_safe()
             
             st.subheader(f"⚙️ 관리 제어판 -> {choice}")
             
@@ -325,9 +325,16 @@ else:
 
     # ==================== [[ 🎓 2. 학생 전용 대시보드 분기 ]] ====================
     else:
+        # 타이머 새로고침 영향 방지 세션 초기화
+        if "search_result" not in st.session_state:
+            st.session_state.search_result = ""
+        if "last_query" not in st.session_state:
+            st.session_state.last_query = ""
+
         @st.fragment(run_every="3s")
         def student_dashboard():
-            current_community = load_community_safe() # KeyError 방지 안전화 로드
+            current_community = load_community_safe()
+            current_chats = load_data(CHAT_FILE)
             
             st.markdown("### 📢 실시간 학교 공지사항")
             st.info(current_community.get('notice', '등록된 공지사항이 없습니다.'))
@@ -336,9 +343,28 @@ else:
 
             with tab1:
                 st.write("### 🤖 학교 생활 규정집 검색기")
-                user_query = st.text_input("궁금한 규정 키워드를 입력하세요:", key="s_query_main")
+                user_query = st.text_input("궁금한 규정 키워드를 입력하세요:", value=st.session_state.last_query, key="s_query_main")
+                
                 if st.button("🔎 검색하기", key="s_query_btn_main") and user_query:
-                    st.markdown(search_pdf_with_highlight(user_query, pdf_content), unsafe_allow_html=True)
+                    # 타이머 증발 버그 차단을 위해 세션에 박제
+                    st.session_state.last_query = user_query
+                    st.session_state.search_result = search_pdf_with_highlight(user_query, pdf_content)
+                    
+                    # 학생 질문 로그(chats.json)에 안전 적재 처리
+                    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    if st.session_state.user_id not in current_chats:
+                        current_chats[st.session_state.user_id] = []
+                    
+                    current_chats[st.session_state.user_id].append({
+                        "time": now_str,
+                        "query": user_query
+                    })
+                    save_data(CHAT_FILE, current_chats)
+                    st.rerun()
+
+                # 실시간 동기화 주기(3초)가 돌아와도 화면에 검색 결과 유지
+                if st.session_state.search_result:
+                    st.markdown(st.session_state.search_result, unsafe_allow_html=True)
 
             with tab2:
                 st.write("### 🏛️ 익명/실명 학생 대나무숲")
@@ -348,7 +374,6 @@ else:
                     if st.form_submit_button("게시글 올리기") and post_content:
                         if check_bad_words(post_content)[0]:
                             author_name = "익명의 새내기" if is_anonymous else st.session_state.user_name
-                            # 🚨 빈 리스트가 보장된 상태에서 안전하게 삽입
                             current_community["posts"].insert(0, {"author": author_name, "content": post_content, "likes": [], "comments": []})
                             save_data(COMMUNITY_FILE, current_community)
                             st.rerun()
