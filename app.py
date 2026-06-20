@@ -306,7 +306,7 @@ else:
                             save_data(COMMUNITY_FILE, current_community)
                             st.rerun()
 
-            # 📊 외부 설치 모듈(matplotlib) 없이 작동하도록 차트 로직 완전 개편
+            # 📊 [통계 노이즈 필터링 적용] 진짜 규정집에 존재하는 핵심 명사만 집계하도록 업그레이드
             elif choice == "💬 학생 질문 통계 및 로그":
                 st.write("### 💬 학생 질문 통계 및 로그 검색 제어판")
                 
@@ -317,19 +317,28 @@ else:
                     st.write("---")
                     
                     word_counts = {}
-                    if search_uid and search_uid in current_chats:
-                        for chat in current_chats[search_uid]:
-                            for word in chat['query'].split():
-                                word_counts[word] = word_counts.get(word, 0) + 1
-                        st.markdown(f"📊 **학번 [{search_uid}] 학생의 키워드 분석 (상위 5개)**")
-                    else:
-                        for uid, history in current_chats.items():
-                            for chat in history:
-                                for word in chat['query'].split():
-                                    word_counts[word] = word_counts.get(word, 0) + 1
-                        st.markdown("📊 **전체 학생 실시간 검색 키워드 분석 (상위 5개)**")
                     
-                    # 💡 패키지 오류 방지: 별도 라이브러리 없이 Streamlit 내장 컴포넌트로 깔끔하게 가로 막대바 구현
+                    # 💡 핵심 해결 로직: 유저가 검색한 단어들 중 '실제 PDF 본문에 매칭되는 단어'만 통계 처리
+                    def get_filtered_words(chat_history_list):
+                        counts = {}
+                        for chat in chat_history_list:
+                            for word in chat['query'].split():
+                                # 2글자 이상이면서, 실제 학교생활 규정집 텍스트 안에 포함되어 있는 단어만 통계로 인정!
+                                if len(word) >= 2 and word in pdf_content:
+                                    counts[word] = counts.get(word, 0) + 1
+                        return counts
+
+                    if search_uid and search_uid in current_chats:
+                        word_counts = get_filtered_words(current_chats[search_uid])
+                        st.markdown(f"📊 **학번 [{search_uid}] 학생의 유효 규정 키워드 분석 (상위 5개)**")
+                    else:
+                        all_chats = []
+                        for uid, history in current_chats.items():
+                            all_chats.extend(history)
+                        word_counts = get_filtered_words(all_chats)
+                        st.markdown("📊 **전체 학생 실시간 핵심 규정 키워드 분석 (상위 5개)**")
+                    
+                    # 내장 가로 막대바 시각화
                     if word_counts:
                         sorted_words = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)[:5]
                         total_top_clicks = sum([x[1] for x in sorted_words])
@@ -339,7 +348,7 @@ else:
                             st.write(f"🏷️ **{word}** ({count}회)")
                             st.progress(min(float(percentage), 1.0))
                     else:
-                        st.info("아직 누적된 질문 데이터가 없습니다.")
+                        st.info("통계에 반영할 만한 유효한 학교 규정 관련 질문 데이터가 없습니다.")
 
                 with col_right:
                     st.markdown("#### 📦 학생 개별 로그 출력 박스")
