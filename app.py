@@ -12,7 +12,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- 🎨 [2] 디자인 및 히든 브릿지 가림용 CSS ---
+# --- 🎨 [2] 디자인 및 히든 브릿지 은폐 CSS ---
 st.markdown(
     """
     <style>
@@ -31,7 +31,7 @@ st.markdown(
         .stButton>button:hover { background-color: #2563eb !important; box-shadow: 0px 0px 8px rgba(37, 99, 235, 0.6); }
         input[type="text"], input[type="password"], textarea { color: #ffffff !important; background-color: #1f2937 !important; border: 1px solid #4b5563 !important; }
         
-        /* 🚨 로그인 창 맨 위에 뜨던 브릿지 인풋 요소를 화면에서 아예 안 보이게 격리 처리 */
+        /* 🚨 상단에 노출되던 로그인 유지용 브릿지 인풋을 우주 끝으로 밀어서 완벽하게 숨김 */
         div[data-testid="stTextInput"]:has(input[aria-label="storage_bridge"]) {
             display: none !important;
             visibility: hidden !important;
@@ -95,7 +95,7 @@ def search_pdf_with_highlight(query, pdf_text):
         return output
     return "🔍 규정집에서 관련 조항을 찾지 못했습니다."
 
-# 데이터 로드
+# 데이터 초기 로드
 users = load_data(USER_FILE)
 chats = load_data(CHAT_FILE)
 community = load_data(COMMUNITY_FILE)
@@ -116,9 +116,8 @@ if "logged_in" not in st.session_state:
     st.session_state.user_name = None
     st.session_state.role = "user"
 
-# --- 🔐 [로그인 풀림 방지] 완벽하게 가려진 백그라운드 브릿지 로직 ---
+# --- 🔐 [로그인 자동 복구] 브라우저 종료/새로고침 대응 브릿지 ---
 if not st.session_state.logged_in:
-    # label_visibility="collapsed"와 CSS 조합으로 완전히 투명인간으로 만듭니다.
     storage_bridge = st.text_input("storage_bridge", key="storage_bridge", label_visibility="collapsed")
     st.components.v1.html(
         """
@@ -155,7 +154,7 @@ if not st.session_state.logged_in:
         except:
             pass
 
-# 상단 UI 로고
+# 상단 헤더 로고
 col_logo, col_title = st.columns([1, 4])
 with col_logo: st.image("https://i.namu.wiki/i/-eAroAg-qXbT2pJ1ZA7PmtbFwbmwAxEwBCc3oLa4UhKh2DixIyG2i6kJw-TrTqEsLkVAOhlGN0nASpm690SRmA.webp", width=110)
 with col_title:
@@ -164,7 +163,7 @@ with col_title:
 
 st.markdown("---")
 
-# --- 1. 로그아웃 상태일 때 ---
+# --- 미로그인 화면 ---
 if not st.session_state.logged_in:
     st.info("👋 안녕하세요! 서비스를 이용하시려면 로그인이나 회원가입을 진행해 주세요.")
     auth_tab1, auth_tab2 = st.tabs(["🔑 로그인", "📝 회원가입"])
@@ -204,96 +203,159 @@ if not st.session_state.logged_in:
                 save_data(USER_FILE, users)
                 st.success("회원가입이 완료되었습니다!")
 
-# --- 2. 로그인 완료 상태일 때 ---
+# --- 로그인 완료 화면 ---
 else:
     st.sidebar.markdown(f"### 👤 {st.session_state.user_name}님")
+    if st.session_state.role == "master_admin": st.sidebar.markdown("👑 **등급:** `최고 관리자`")
+    elif st.session_state.role == "sub_admin": st.sidebar.markdown("🛡️ **등급:** `일반 관리자`")
+    else: st.sidebar.markdown("🎓 **등급:** `일반 학생 사용자`")
+
     if st.sidebar.button("로그아웃", use_container_width=True):
         st.session_state.logged_in = False
         st.components.v1.html("<script>localStorage.removeItem('saved_user_info');</script>", height=0)
         st.rerun()
 
-    # 관리자 메뉴 생략 (이전 기능과 동일하게 관리자 기능 레이아웃 처리 가능)
+    # ==================== [[ 🛠️ 1. 관리자 전용 대시보드 구역 ]] ====================
     if st.session_state.role in ["master_admin", "sub_admin"]:
-        st.info("🛠️ 관리자 제어 모드입니다. 학생 화면 실시간 동기화 상태를 모니터링합니다.")
-
-    # ==================== [[ ⚡ 핵심: st.fragment를 이용한 실시간 완전 자동 동기화 구역 ]] ====================
-    # 이 안에 들어있는 컴포넌트들은 전체 화면 새로고침 없이 3초마다 내부 데이터만 동기화하여 다시 그려집니다!
-    @st.fragment(run_every="3s")
-    def realtime_dashboard():
-        # 파일로부터 실시간 업데이트 내역 다시 가져오기
-        current_community = load_data(COMMUNITY_FILE)
+        st.sidebar.markdown("---")
+        st.sidebar.markdown("### 🛠️ 관리자 메뉴")
+        admin_menu = ["🔍 전체 계정 관리", "📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 로그", "🔥 최다 질문 통계"]
+        if st.session_state.role == "master_admin": admin_menu.append("➕ 일반 관리자 계정 생성")
+        sub_choice = st.sidebar.radio("제어할 기능을 선택하세요", admin_menu)
         
-        st.markdown("### 📢 실시간 학교 공지사항")
-        st.info(current_community.get('notice', '등록된 공지사항이 없습니다.'))
-        
-        tab1, tab2, tab3 = st.tabs(["🤖 규정 질문 챗봇", "🏛️ 학생 소통 커뮤니티", "📊 실시간 투표존"])
-
-        with tab1:
-            st.write("### 🤖 학교 생활 규정집 검색기")
-            user_query = st.text_input("궁금한 규정 키워드를 입력하세요:", key="frag_chatbot_query")
-            if st.button("🔎 규정집 실시간 검색하기", key="frag_btn_search"):
-                if user_query:
-                    st.markdown(search_pdf_with_highlight(user_query, pdf_content), unsafe_allow_html=True)
-
-        with tab2:
-            st.write("### 🏛️ 익명/실명 학생 대나무숲")
+        @st.fragment(run_every="3s")
+        def admin_dashboard(choice):
+            current_users = load_data(USER_FILE)
+            current_chats = load_data(CHAT_FILE)
+            current_community = load_data(COMMUNITY_FILE)
             
-            # 입력 폼
-            with st.form("frag_comm_form", clear_on_submit=True):
-                post_content = st.text_area("학교 생활이나 궁금한 점을 공유해봐요!")
-                is_anonymous = st.checkbox("익명으로 올리기")
-                if st.form_submit_button("게시글 올리기") and post_content:
-                    is_clean, bad_w = check_bad_words(post_content)
-                    if is_clean:
-                        author_name = "익명의 새내기" if is_anonymous else st.session_state.user_name
-                        current_community["posts"].insert(0, {
-                            "id": len(current_community["posts"]), "author": author_name, 
-                            "content": post_content, "likes": [], "comments": []
-                        })
-                        save_data(COMMUNITY_FILE, current_community)
-                        st.rerun()
-
-            st.write("---")
-            # 피드 출력 (하트, 댓글 실시간 업데이트 반영)
-            for idx, post in enumerate(current_community.get("posts", [])):
-                st.markdown(f"👤 **{post['author']}**")
-                st.info(post["content"])
+            st.subheader(f"⚙️ 관리 제어판 -> {choice}")
+            
+            if choice == "🔍 전체 계정 관리":
+                search_uid = st.text_input("🔍 학번 또는 관리자 ID 입력 검색 (빈칸이면 전체 조회)")
+                target_users = {k: v for k, v in current_users.items() if v.get("role") != "master_admin"}
+                if search_uid in current_users: target_users = {search_uid: current_users[search_uid]}
                 
-                # 하트 버튼 누를 때 즉각 반영
-                if st.button(f"❤️ {len(post['likes'])}", key=f"frag_like_{idx}_{len(post['likes'])}"):
-                    if st.session_state.user_id in post["likes"]: post["likes"].remove(st.session_state.user_id)
-                    else: post["likes"].append(st.session_state.user_id)
+                for u_id, u_info in target_users.items():
+                    with st.expander(f"ID/학번: {u_id} | 이름: {u_info['name']}"):
+                        edit_name = st.text_input("이름", value=u_info['name'], key=f"adm_n_{u_id}")
+                        edit_pw = st.text_input("비밀번호", value=u_info['password'], key=f"adm_p_{u_id}")
+                        if st.button("💾 수정 저장", key=f"btn_save_{u_id}"):
+                            current_users[u_id].update({"name": edit_name, "password": edit_pw})
+                            save_data(USER_FILE, current_users)
+                            st.rerun()
+
+            elif choice == "📢 공지 및 투표 관리":
+                new_notice = st.text_area("공지사항 내용 수정", value=current_community.get("notice", ""))
+                if st.button("📢 공지 업데이트"):
+                    current_community["notice"] = new_notice
+                    save_data(COMMUNITY_FILE, current_community)
+                    st.success("공지 완료!")
+                st.write("---")
+                poll_title = st.text_input("투표 안건 주제")
+                poll_o1 = st.text_input("선택지 1")
+                poll_o2 = st.text_input("선택지 2")
+                if st.button("🗳️ 투표 발의") and poll_title and poll_o1 and poll_o2:
+                    current_community["polls"].append({
+                        "title": poll_title, "options": [poll_o1, poll_o2],
+                        "votes": {poll_o1: 0, poll_o2: 0}, "voted_users": [], "is_closed": False
+                    })
                     save_data(COMMUNITY_FILE, current_community)
                     st.rerun()
 
-                with st.expander(f"💬 댓글 ({len(post['comments'])}개)"):
-                    for comment in post["comments"]:
-                        st.write(f"↳ **{comment['author']}**: {comment['text']}")
-                    
-                    # 댓글 작성 폼
-                    with st.form(f"frag_cmt_form_{idx}", clear_on_submit=True):
-                        cmt_text = st.text_input("댓글 쓰기", key=f"input_cmt_{idx}")
-                        if st.form_submit_button("등록") and cmt_text:
-                            if check_bad_words(cmt_text)[0]:
-                                post["comments"].append({"author": st.session_state.user_name, "text": cmt_text})
-                                save_data(COMMUNITY_FILE, current_community)
-                                st.rerun()
-
-        with tab3:
-            st.write("### 📊 실시간 학생 투표광장")
-            for p_idx, poll in enumerate(current_community.get("polls", [])):
-                st.write(f"#### ❓ 주제: {poll['title']}")
-                if poll.get("is_closed", False) or st.session_state.user_id in poll["voted_users"]:
-                    st.warning("투표 정산 완료 또는 이미 참여한 투표입니다.")
-                    for opt, val in poll["votes"].items():
-                        st.write(f"✔️ **{opt}** : {val}표")
-                else:
-                    selected_opt = st.radio("보기를 선택하세요", poll["options"], key=f"frag_poll_opt_{p_idx}")
-                    if st.button("투표 제출하기", key=f"frag_poll_btn_{p_idx}"):
-                        poll["votes"][selected_opt] += 1
-                        poll["voted_users"].append(st.session_state.user_id)
+            elif choice == "🏛️ 커뮤니티 게시글 관리":
+                for idx, post in enumerate(current_community.get("posts", [])):
+                    st.write(f"✍️ **{post['author']}:** {post['content']}")
+                    if st.button("🗑️ 글 삭제", key=f"adm_del_p_{idx}"):
+                        current_community["posts"].pop(idx)
                         save_data(COMMUNITY_FILE, current_community)
                         st.rerun()
 
-    # 프래그먼트 활성화 실행
-    realtime_dashboard()
+            elif choice == "💬 학생 질문 로그":
+                for uid, history in current_chats.items():
+                    st.write(f"👤 **학번 {uid}:**")
+                    for chat in history: st.caption(f"- [{chat['time']}] {chat['query']}")
+
+            elif choice == "🔥 최다 질문 통계":
+                all_words = []
+                for uid, history in current_chats.items():
+                    for chat in history: all_words.extend(chat['query'].split())
+                st.write(f"📊 수집된 검색 키워드 총 {len(all_words)}개")
+
+            elif choice == "➕ 일반 관리자 계정 생성":
+                sub_id = st.text_input("생성할 관리자 ID")
+                sub_name = st.text_input("관리자 이름")
+                sub_pw = st.text_input("비밀번호", type="password")
+                if st.button("🛡️ 계정 생성") and sub_id and sub_name and sub_pw:
+                    current_users[sub_id] = {"password": sub_pw, "name": sub_name, "role": "sub_admin"}
+                    save_data(USER_FILE, current_users)
+                    st.success("생성 완료!")
+
+        admin_dashboard(sub_choice)
+
+    # ==================== [[ 🎓 2. 학생/일반 사용자 전용 대시보드 구역 ]] ====================
+    else:
+        @st.fragment(run_every="3s")
+        def student_dashboard():
+            current_community = load_data(COMMUNITY_FILE)
+            
+            st.markdown("### 📢 실시간 학교 공지사항")
+            st.info(current_community.get('notice', '등록된 공지사항이 없습니다.'))
+            
+            tab1, tab2, tab3 = st.tabs(["🤖 규정 질문 챗봇", "🏛️ 학생 소통 커뮤니티", "📊 실시간 투표존"])
+
+            with tab1:
+                st.write("### 🤖 학교 생활 규정집 검색기")
+                user_query = st.text_input("궁금한 규정 키워드를 입력하세요:", key="stu_query")
+                if st.button("🔎 검색하기", key="stu_query_btn") and user_query:
+                    st.markdown(search_pdf_with_highlight(user_query, pdf_content), unsafe_allow_html=True)
+
+            with tab2:
+                st.write("### 🏛️ 익명/실명 학생 대나무숲")
+                with st.form("stu_post_form", clear_on_submit=True):
+                    post_content = st.text_area("학교 생활 이야기를 들려주세요!")
+                    is_anonymous = st.checkbox("익명으로 게시")
+                    if st.form_submit_button("게시글 올리기") and post_content:
+                        if check_bad_words(post_content)[0]:
+                            author_name = "익명의 새내기" if is_anonymous else st.session_state.user_name
+                            current_community["posts"].insert(0, {"author": author_name, "content": post_content, "likes": [], "comments": []})
+                            save_data(COMMUNITY_FILE, current_community)
+                            st.rerun()
+
+                st.write("---")
+                for idx, post in enumerate(current_community.get("posts", [])):
+                    st.markdown(f"👤 **{post['author']}**")
+                    st.info(post["content"])
+                    
+                    if st.button(f"❤️ {len(post['likes'])}", key=f"stu_l_{idx}_{len(post['likes'])}"):
+                        if st.session_state.user_id in post["likes"]: post["likes"].remove(st.session_state.user_id)
+                        else: post["likes"].append(st.session_state.user_id)
+                        save_data(COMMUNITY_FILE, current_community)
+                        st.rerun()
+
+                    with st.expander(f"💬 댓글 ({len(post['comments'])}개)"):
+                        for comment in post["comments"]: st.write(f"↳ **{comment['author']}**: {comment['text']}")
+                        with st.form(f"stu_cmt_form_{idx}", clear_on_submit=True):
+                            cmt_text = st.text_input("댓글 작성", key=f"stu_i_cmt_{idx}")
+                            if st.form_submit_button("등록") and cmt_text:
+                                if check_bad_words(cmt_text)[0]:
+                                    post["comments"].append({"author": st.session_state.user_name, "text": cmt_text})
+                                    save_data(COMMUNITY_FILE, current_community)
+                                    st.rerun()
+
+            with tab3:
+                st.write("### 📊 실시간 학생 투표광장")
+                for p_idx, poll in enumerate(current_community.get("polls", [])):
+                    st.write(f"#### ❓ 주제: {poll['title']}")
+                    if poll.get("is_closed", False) or st.session_state.user_id in poll["voted_users"]:
+                        st.warning("참여 완료 또는 마감된 투표입니다.")
+                        for opt, val in poll["votes"].items(): st.write(f"✔️ **{opt}** : {val}표")
+                    else:
+                        selected_opt = st.radio("보기를 선택하세요", poll["options"], key=f"stu_p_opt_{p_idx}")
+                        if st.button("투표 제출", key=f"stu_p_btn_{p_idx}"):
+                            poll["votes"][selected_opt] += 1
+                            poll["voted_users"].append(st.session_state.user_id)
+                            save_data(COMMUNITY_FILE, current_community)
+                            st.rerun()
+
+        student_dashboard()
