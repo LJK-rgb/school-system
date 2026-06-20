@@ -306,13 +306,11 @@ else:
                             save_data(COMMUNITY_FILE, current_community)
                             st.rerun()
 
-            # 📊 [핵심 단어 완전 역매칭 방식 도입]
             elif choice == "💬 학생 질문 통계 및 로그":
                 st.write("### 💬 학생 질문 통계 및 로그 검색 제어판")
                 
                 col_left, col_right = st.columns([1, 1])
                 
-                # 🔍 학교생활규정집의 핵심 유효 키워드 풀 사전 정의
                 VALID_TARGET_WORDS = [
                     "휴대폰", "스마트폰", "두발", "복장", "교복", "지각", "조퇴", "결석", 
                     "벌점", "상점", "포상", "징계", "소지품", "화장", "귀걸이", "피어싱", 
@@ -325,11 +323,10 @@ else:
                     
                     word_counts = {}
                     
-                    # 검색 문장 속에서 미리 정의된 핵심 단어들을 역으로 매칭 및 카운트하는 정밀 함수
                     def get_strict_filtered_words(chat_history_list):
                         counts = {}
                         for chat in chat_history_list:
-                            query_text = chat['query'].replace(" ", "") # 공백 제거 후 비교로 정밀도 향상
+                            query_text = chat['query'].replace(" ", "")
                             for target_word in VALID_TARGET_WORDS:
                                 if target_word in query_text:
                                     counts[target_word] = counts.get(target_word, 0) + 1
@@ -345,7 +342,6 @@ else:
                         word_counts = get_strict_filtered_words(all_chats)
                         st.markdown("📊 **전체 학생 실시간 핵심 규정 키워드 분석 (상위 5개)**")
                     
-                    # 정밀 매칭된 가로 막대바 시각화
                     if word_counts:
                         sorted_words = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)[:5]
                         total_top_clicks = sum([x[1] for x in sorted_words])
@@ -405,7 +401,14 @@ else:
 
             with tab1:
                 st.write("### 🤖 학교 생활 규정집 검색기")
-                user_query = st.text_input("궁금한 규정 키워드를 입력하세요:", value=st.session_state.last_query, key="s_query_main")
+                
+                # 💡 [업데이트 완료] placeholder 추가되어 불투명한 가이드 글씨 제공
+                user_query = st.text_input(
+                    "궁금한 규정 키워드를 입력하세요:", 
+                    value=st.session_state.last_query, 
+                    placeholder="💡 단어로 입력해 주세요! 예: 두발, 휴대폰 (문장X)", 
+                    key="s_query_main"
+                )
                 
                 if st.button("🔎 검색하기", key="s_query_btn_main") and user_query:
                     st.session_state.last_query = user_query
