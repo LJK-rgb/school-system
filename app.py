@@ -4,7 +4,6 @@ import os
 from datetime import datetime
 import pypdf
 import re
-import matplotlib.pyplot as plt
 
 # --- 📱 [1] 브라우저 기본 페이지 설정 ---
 st.set_page_config(
@@ -12,10 +11,6 @@ st.set_page_config(
     page_icon="https://i.namu.wiki/i/-eAroAg-qXbT2pJ1ZA7PmtbFwbmwAxEwBCc3oLa4UhKh2DixIyG2i6kJw-TrTqEsLkVAOhlGN0nASpm690SRmA.webp",
     layout="centered"
 )
-
-# 한글 폰트 깨짐 방지 설정 (Streamlit 리눅스 서버 환경 감안하여 기본 폰트 대응)
-plt.rcParams['font.family'] = 'sans-serif'
-plt.rcParams['axes.unicode_minus'] = False
 
 # --- 🎨 [2] 디자인 및 히든 브릿지 완전 은폐 CSS ---
 st.markdown(
@@ -311,62 +306,49 @@ else:
                             save_data(COMMUNITY_FILE, current_community)
                             st.rerun()
 
-            # 📊 [요청 사항 반영] 최다 질문 통계 및 로그 검색 영역 통합
+            # 📊 외부 설치 모듈(matplotlib) 없이 작동하도록 차트 로직 완전 개편
             elif choice == "💬 학생 질문 통계 및 로그":
                 st.write("### 💬 학생 질문 통계 및 로그 검색 제어판")
                 
-                # 좌우 영역 나누기 (왼쪽: 검색 및 통계, 오른쪽: 전용 박스 로그 출력)
                 col_left, col_right = st.columns([1, 1])
                 
                 with col_left:
                     search_uid = st.text_input("👤 검색할 학생 학번 입력 (미입력 시 전체 통계)", key="admin_search_uid")
                     st.write("---")
                     
-                    # 단어 빈도수 계산기 로직
                     word_counts = {}
-                    
                     if search_uid and search_uid in current_chats:
-                        # 1) 특정 학생 검색 시 그 학생 단어 계산
                         for chat in current_chats[search_uid]:
                             for word in chat['query'].split():
                                 word_counts[word] = word_counts.get(word, 0) + 1
-                        st.markdown(f"📊 **학번 [{search_uid}] 학생의 검색 키워드 분석**")
+                        st.markdown(f"📊 **학번 [{search_uid}] 학생의 키워드 분석 (상위 5개)**")
                     else:
-                        # 2) 전체 통계 단어 계산
                         for uid, history in current_chats.items():
                             for chat in history:
                                 for word in chat['query'].split():
                                     word_counts[word] = word_counts.get(word, 0) + 1
-                        st.markdown("📊 **전체 학생 실시간 검색 키워드 분석**")
+                        st.markdown("📊 **전체 학생 실시간 검색 키워드 분석 (상위 5개)**")
                     
-                    # 📈 마틀랩 파이 차트 그리기
+                    # 💡 패키지 오류 방지: 별도 라이브러리 없이 Streamlit 내장 컴포넌트로 깔끔하게 가로 막대바 구현
                     if word_counts:
                         sorted_words = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)[:5]
-                        labels = [x[0] for x in sorted_words]
-                        sizes = [x[1] for x in sorted_words]
+                        total_top_clicks = sum([x[1] for x in sorted_words])
                         
-                        fig, ax = plt.subplots(figsize=(4, 4))
-                        fig.patch.set_facecolor('#0e1117') # 배경 어둡게 일치
-                        
-                        wedges, texts, autotexts = ax.pie(
-                            sizes, labels=labels, autopct='%1.1f%%', 
-                            startangle=90, textprops=dict(color="w")
-                        )
-                        ax.axis('equal')
-                        st.pyplot(fig)
+                        for word, count in sorted_words:
+                            percentage = (count / total_top_clicks) if total_top_clicks > 0 else 0
+                            st.write(f"🏷️ **{word}** ({count}회)")
+                            st.progress(min(float(percentage), 1.0))
                     else:
                         st.info("아직 누적된 질문 데이터가 없습니다.")
 
                 with col_right:
                     st.markdown("#### 📦 학생 개별 로그 출력 박스")
                     
-                    # 스크롤 가능한 스타일 박스 시작
                     log_html = "<div class='log-box'>"
-                    
                     if search_uid:
                         if search_uid in current_chats:
                             student_name = current_users.get(search_uid, {}).get('name', '미등록 유저')
-                            log_html += f"<p style='color:#3b82f6; font-weight:bold;'>👤 {student_name} ({search_uid})의 기록</p><hr style='border:0.5px solid #334155;'>"
+                            log_html += f"<p style='color:#3b82f6; font-weight:bold;'>👤 {student_name} ({search_uid})의 기록</p><hr style='border:0.5px solid #334155;'> "
                             for chat in reversed(current_chats[search_uid]):
                                 log_html += f"<p style='font-size:13px; margin-bottom:4px;'><span style='color:#94a3b8;'>[{chat['time']}]</span> {chat['query']}</p>"
                         else:
