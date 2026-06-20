@@ -4,6 +4,7 @@ import os
 from datetime import datetime
 import pypdf
 import re
+import matplotlib.pyplot as plt
 
 # --- 📱 [1] 브라우저 기본 페이지 설정 ---
 st.set_page_config(
@@ -11,6 +12,10 @@ st.set_page_config(
     page_icon="https://i.namu.wiki/i/-eAroAg-qXbT2pJ1ZA7PmtbFwbmwAxEwBCc3oLa4UhKh2DixIyG2i6kJw-TrTqEsLkVAOhlGN0nASpm690SRmA.webp",
     layout="centered"
 )
+
+# 한글 폰트 깨짐 방지 설정 (Streamlit 리눅스 서버 환경 감안하여 기본 폰트 대응)
+plt.rcParams['font.family'] = 'sans-serif'
+plt.rcParams['axes.unicode_minus'] = False
 
 # --- 🎨 [2] 디자인 및 히든 브릿지 완전 은폐 CSS ---
 st.markdown(
@@ -42,6 +47,17 @@ st.markdown(
 
         #MainMenu, header, footer { visibility: hidden !important; display: none !important; }
         [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stStatusWidget"] { display: none !important; }
+        
+        /* 📦 우측 로그 출력 전용 스타일 박스 */
+        .log-box {
+            background-color: #1e293b;
+            border: 1px solid #3b82f6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 10px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
     </style>
     """,
     unsafe_allow_html=True
@@ -71,7 +87,6 @@ def save_data(filepath, data):
     with open(filepath, "w", encoding="utf-8") as f: 
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-# community.json 로드 시 KeyError 방지를 위한 구조 강제화 함수
 def load_community_safe():
     data = load_data(COMMUNITY_FILE)
     if not isinstance(data, dict): data = {}
@@ -111,18 +126,15 @@ def search_pdf_with_highlight(query, pdf_text):
         return output
     return "🔍 규정집에서 관련 조항을 찾지 못했습니다."
 
-# 초기 데이터 바인딩 (유저 파일 보존)
 users = load_data(USER_FILE)
 chats = load_data(CHAT_FILE)
 community = load_community_safe()
 pdf_content = load_pdf_text(PDF_FILE)
 
-# 마스터 관리자 계정 보존
 if "admin" not in users:
     users["admin"] = {"password": "ahsknue2026_2026!", "name": "최고관리자", "role": "master_admin"}
     save_data(USER_FILE, users)
 
-# 세션 상태 초기화
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
     st.session_state.user_id = None
@@ -167,7 +179,6 @@ with col_title:
 
 st.markdown("---")
 
-# --- 미로그인 상태 UI ---
 if not st.session_state.logged_in:
     st.info("👋 안녕하세요! 서비스를 이용하시려면 로그인이나 회원가입을 진행해 주세요.")
     auth_tab1, auth_tab2 = st.tabs(["🔑 로그인", "📝 회원가입"])
@@ -208,7 +219,6 @@ if not st.session_state.logged_in:
                 save_data(USER_FILE, users)
                 st.success("🎉 회원가입 성공! 로그인 탭으로 이동해 주세요.")
 
-# --- 로그인 완료 상태 UI ---
 else:
     st.sidebar.markdown(f"### 👤 {st.session_state.user_name}님")
     if st.session_state.role == "master_admin": st.sidebar.markdown("👑 **등급:** `최고 관리자`")
@@ -224,7 +234,7 @@ else:
     if st.session_state.role in ["master_admin", "sub_admin"]:
         st.sidebar.markdown("---")
         st.sidebar.markdown("### 🛠️ 관리자 메뉴")
-        admin_menu = ["🔍 전체 계정 관리", "📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 로그", "🔥 최다 질문 통계"]
+        admin_menu = ["🔍 전체 계정 관리", "📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 통계 및 로그"]
         if st.session_state.role == "master_admin": admin_menu.append("➕ 일반 관리자 계정 생성")
         sub_choice = st.sidebar.radio("제어할 기능을 선택하세요", admin_menu)
         
@@ -301,16 +311,71 @@ else:
                             save_data(COMMUNITY_FILE, current_community)
                             st.rerun()
 
-            elif choice == "💬 학생 질문 로그":
-                for uid, history in current_chats.items():
-                    st.write(f"👤 **학번 {uid} 기록:**")
-                    for chat in history: st.caption(f"- [{chat['time']}] {chat['query']}")
+            # 📊 [요청 사항 반영] 최다 질문 통계 및 로그 검색 영역 통합
+            elif choice == "💬 학생 질문 통계 및 로그":
+                st.write("### 💬 학생 질문 통계 및 로그 검색 제어판")
+                
+                # 좌우 영역 나누기 (왼쪽: 검색 및 통계, 오른쪽: 전용 박스 로그 출력)
+                col_left, col_right = st.columns([1, 1])
+                
+                with col_left:
+                    search_uid = st.text_input("👤 검색할 학생 학번 입력 (미입력 시 전체 통계)", key="admin_search_uid")
+                    st.write("---")
+                    
+                    # 단어 빈도수 계산기 로직
+                    word_counts = {}
+                    
+                    if search_uid and search_uid in current_chats:
+                        # 1) 특정 학생 검색 시 그 학생 단어 계산
+                        for chat in current_chats[search_uid]:
+                            for word in chat['query'].split():
+                                word_counts[word] = word_counts.get(word, 0) + 1
+                        st.markdown(f"📊 **학번 [{search_uid}] 학생의 검색 키워드 분석**")
+                    else:
+                        # 2) 전체 통계 단어 계산
+                        for uid, history in current_chats.items():
+                            for chat in history:
+                                for word in chat['query'].split():
+                                    word_counts[word] = word_counts.get(word, 0) + 1
+                        st.markdown("📊 **전체 학생 실시간 검색 키워드 분석**")
+                    
+                    # 📈 마틀랩 파이 차트 그리기
+                    if word_counts:
+                        sorted_words = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+                        labels = [x[0] for x in sorted_words]
+                        sizes = [x[1] for x in sorted_words]
+                        
+                        fig, ax = plt.subplots(figsize=(4, 4))
+                        fig.patch.set_facecolor('#0e1117') # 배경 어둡게 일치
+                        
+                        wedges, texts, autotexts = ax.pie(
+                            sizes, labels=labels, autopct='%1.1f%%', 
+                            startangle=90, textprops=dict(color="w")
+                        )
+                        ax.axis('equal')
+                        st.pyplot(fig)
+                    else:
+                        st.info("아직 누적된 질문 데이터가 없습니다.")
 
-            elif choice == "🔥 최다 질문 통계":
-                all_words = []
-                for uid, history in current_chats.items():
-                    for chat in history: all_words.extend(chat['query'].split())
-                st.write(f"📊 수집된 실시간 검색어 키워드 총 {len(all_words)}개")
+                with col_right:
+                    st.markdown("#### 📦 학생 개별 로그 출력 박스")
+                    
+                    # 스크롤 가능한 스타일 박스 시작
+                    log_html = "<div class='log-box'>"
+                    
+                    if search_uid:
+                        if search_uid in current_chats:
+                            student_name = current_users.get(search_uid, {}).get('name', '미등록 유저')
+                            log_html += f"<p style='color:#3b82f6; font-weight:bold;'>👤 {student_name} ({search_uid})의 기록</p><hr style='border:0.5px solid #334155;'>"
+                            for chat in reversed(current_chats[search_uid]):
+                                log_html += f"<p style='font-size:13px; margin-bottom:4px;'><span style='color:#94a3b8;'>[{chat['time']}]</span> {chat['query']}</p>"
+                        else:
+                            log_html += "<p style='color:#ef4444;'>⚠️ 해당 학번의 질문 기록이 존재하지 않습니다.</p>"
+                    else:
+                        log_html += "<p style='color:#94a3b8; font-size:13px;'>상단의 학번 검색창에 학번을 입력하시면 해당 학생의 실시간 질문 히스토리가 이 박스 영역에 표기됩니다.</p>"
+                    
+                    log_html += "</div>"
+                    st.markdown(log_html, unsafe_allow_html=True)
 
             elif choice == "➕ 일반 관리자 계정 생성":
                 sub_id = st.text_input("일반 관리자 ID")
@@ -325,7 +390,6 @@ else:
 
     # ==================== [[ 🎓 2. 학생 전용 대시보드 분기 ]] ====================
     else:
-        # 타이머 새로고침 영향 방지 세션 초기화
         if "search_result" not in st.session_state:
             st.session_state.search_result = ""
         if "last_query" not in st.session_state:
@@ -346,11 +410,9 @@ else:
                 user_query = st.text_input("궁금한 규정 키워드를 입력하세요:", value=st.session_state.last_query, key="s_query_main")
                 
                 if st.button("🔎 검색하기", key="s_query_btn_main") and user_query:
-                    # 타이머 증발 버그 차단을 위해 세션에 박제
                     st.session_state.last_query = user_query
                     st.session_state.search_result = search_pdf_with_highlight(user_query, pdf_content)
                     
-                    # 학생 질문 로그(chats.json)에 안전 적재 처리
                     now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                     if st.session_state.user_id not in current_chats:
                         current_chats[st.session_state.user_id] = []
@@ -362,7 +424,6 @@ else:
                     save_data(CHAT_FILE, current_chats)
                     st.rerun()
 
-                # 실시간 동기화 주기(3초)가 돌아와도 화면에 검색 결과 유지
                 if st.session_state.search_result:
                     st.markdown(st.session_state.search_result, unsafe_allow_html=True)
 
