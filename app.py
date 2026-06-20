@@ -12,7 +12,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- 🎨 [2] 디자인 및 히든 브릿지 은폐 CSS ---
+# --- 🎨 [2] 디자인 및 완전 은폐 CSS ---
 st.markdown(
     """
     <style>
@@ -31,15 +31,6 @@ st.markdown(
         .stButton>button:hover { background-color: #2563eb !important; box-shadow: 0px 0px 8px rgba(37, 99, 235, 0.6); }
         input[type="text"], input[type="password"], textarea { color: #ffffff !important; background-color: #1f2937 !important; border: 1px solid #4b5563 !important; }
         
-        /* 🚨 상단에 노출되던 로그인 유지용 브릿지 인풋을 우주 끝으로 밀어서 완벽하게 숨김 */
-        div[data-testid="stTextInput"]:has(input[aria-label="storage_bridge"]) {
-            display: none !important;
-            visibility: hidden !important;
-            height: 0px !important;
-            position: absolute !important;
-            top: -9999px !important;
-        }
-
         #MainMenu, header, footer { visibility: hidden !important; display: none !important; }
         [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stStatusWidget"] { display: none !important; }
     </style>
@@ -104,55 +95,46 @@ pdf_content = load_pdf_text(PDF_FILE)
 for key in ["posts", "polls"]:
     if key not in community: community[key] = []
 if "notice" not in community: community["notice"] = "아직 등록된 공지사항이 없습니다."
-if "notice_likes" not in community: community["notice_likes"] = []
-if "notice_comments" not in community: community["notice_comments"] = []
 
 users["admin"] = {"password": "ahsknue2026_2026!", "name": "최고관리자", "role": "master_admin"}
 save_data(USER_FILE, users)
 
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-    st.session_state.user_id = None
-    st.session_state.user_name = None
-    st.session_state.role = "user"
+# --- 🔐 [핵심 개선] URL 파라미터를 이용한 초고속 로그인 복구 및 스토리지 연동 ---
+query_params = st.query_params
 
-# --- 🔐 [로그인 자동 복구] 브라우저 종료/새로고침 대응 브릿지 ---
+if "logged_in" not in st.session_state:
+    # 1순위: URL 파라미터에 이미 동기화된 데이터가 있다면 즉시 로그인 주입 (새로고침 대응)
+    if "token" in query_params:
+        try:
+            user_info = json.loads(query_params["token"])
+            st.session_state.logged_in = True
+            st.session_state.user_id = user_info["id"]
+            st.session_state.user_name = user_info["name"]
+            st.session_state.role = user_info["role"]
+        except:
+            st.session_state.logged_in = False
+    else:
+        st.session_state.logged_in = False
+        st.session_state.user_id = None
+        st.session_state.user_name = None
+        st.session_state.role = "user"
+
+# 로그인 안 된 경우 브라우저 로컬 스토리지를 읽어와 URL 파라미터로 즉시 쏴주는 스크립트 실행 (화면 노출 X)
 if not st.session_state.logged_in:
-    storage_bridge = st.text_input("storage_bridge", key="storage_bridge", label_visibility="collapsed")
     st.components.v1.html(
         """
         <script>
-            const parentDoc = window.parent.document;
             const savedUser = localStorage.getItem("saved_user_info");
-            if (savedUser) {
-                const inputs = parentDoc.querySelectorAll('input[type="text"]');
-                let bridgeInput = null;
-                for (let input of inputs) {
-                    if (input.ariaLabel === "storage_bridge" || input.id === "storage_bridge") {
-                        bridgeInput = input;
-                        break;
-                    }
-                }
-                if (bridgeInput && bridgeInput.value !== savedUser) {
-                    bridgeInput.value = savedUser;
-                    bridgeInput.dispatchEvent(new Event('input', { bubbles: true }));
-                    bridgeInput.dispatchEvent(new Event('change', { bubbles: true }));
-                }
+            const urlParams = new URLSearchParams(window.parent.location.search);
+            if (savedUser && !urlParams.has("token")) {
+                // 토큰을 주소창에 안전하게 바인딩 후 부모 페이지 새로고침하여 스트림릿에 전달
+                urlParams.set("token", savedUser);
+                window.parent.location.search = urlParams.toString();
             }
         </script>
         """,
         height=0
     )
-    if st.session_state.storage_bridge:
-        try:
-            user_info = json.loads(st.session_state.storage_bridge)
-            st.session_state.logged_in = True
-            st.session_state.user_id = user_info["id"]
-            st.session_state.user_name = user_info["name"]
-            st.session_state.role = user_info["role"]
-            st.rerun()
-        except:
-            pass
 
 # 상단 헤더 로고
 col_logo, col_title = st.columns([1, 4])
@@ -180,11 +162,15 @@ if not st.session_state.logged_in:
                 st.session_state.user_name = users[user_id]["name"]
                 st.session_state.role = "master_admin" if user_id == "admin" else users[user_id].get("role", "user")
                 
+                user_data_str = json.dumps({"id": st.session_state.user_id, "name": st.session_state.user_name, "role": st.session_state.role}, ensure_ascii=False)
+                
+                # 로컬 스토리지 저장 및 주소창 토큰 세팅 후 동시 새로고침
                 st.components.v1.html(f"""
                     <script>
-                        localStorage.setItem("saved_user_info", JSON.stringify({{
-                            id: "{st.session_state.user_id}", name: "{st.session_state.user_name}", role: "{st.session_state.role}"
-                        }}));
+                        localStorage.setItem("saved_user_info", JSON.stringify({user_data_str}));
+                        const urlParams = new URLSearchParams(window.parent.location.search);
+                        urlParams.set("token", JSON.stringify({user_data_str}));
+                        window.parent.location.search = urlParams.toString();
                     </script>
                 """, height=0)
                 st.success(f"🎉 {st.session_state.user_name}님 로그인 성공!")
@@ -212,7 +198,13 @@ else:
 
     if st.sidebar.button("로그아웃", use_container_width=True):
         st.session_state.logged_in = False
-        st.components.v1.html("<script>localStorage.removeItem('saved_user_info');</script>", height=0)
+        st.query_params.clear()
+        st.components.v1.html("""
+            <script>
+                localStorage.removeItem('saved_user_info');
+                window.parent.location.search = "";
+            </script>
+        """, height=0)
         st.rerun()
 
     # ==================== [[ 🛠️ 1. 관리자 전용 대시보드 구역 ]] ====================
