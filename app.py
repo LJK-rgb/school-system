@@ -294,17 +294,34 @@ else:
                                 save_data(COMMUNITY_FILE, current_community)
                                 st.rerun()
 
+            # 🏛️ [업데이트 완료] 게시글 삭제 기능 및 개별 댓글 삭제 관리망 추가
             elif choice == "🏛️ 커뮤니티 게시글 관리":
                 if not current_community.get("posts"):
                     st.info("현재 커뮤니티에 올라온 게시글이 없습니다.")
                 for idx, post in enumerate(current_community.get("posts", [])):
-                    col_del1, col_del2 = st.columns([4, 1])
-                    with col_del1: st.write(f"✍️ **{post.get('author', '익명')}:** {post.get('content', '')}")
-                    with col_del2:
-                        if st.button("🗑️ 삭제", key=f"a_d_p_{idx}"):
+                    with st.expander(f"✍️ [{post.get('author', '익명')}] {post.get('content', '')[:20]}..."):
+                        st.write(f"**원문 내용:** {post.get('content', '')}")
+                        
+                        if st.button("🗑️ 게시글 전체 삭제", key=f"a_d_p_{idx}"):
                             current_community["posts"].pop(idx)
                             save_data(COMMUNITY_FILE, current_community)
                             st.rerun()
+                        
+                        st.write("---")
+                        st.caption("💬 이 게시글에 달린 댓글 리스트")
+                        comments = post.get("comments", [])
+                        if not comments:
+                            st.caption("등록된 댓글이 없습니다.")
+                        else:
+                            for c_idx, cmt in enumerate(comments):
+                                col_c1, col_c2 = st.columns([4, 1])
+                                with col_c1:
+                                    st.write(f"↳ **{cmt.get('author','익명')}**: {cmt.get('text','')}")
+                                with col_c2:
+                                    if st.button("❌ 댓글 삭제", key=f"a_d_c_{idx}_{c_idx}"):
+                                        post["comments"].pop(c_idx)
+                                        save_data(COMMUNITY_FILE, current_community)
+                                        st.rerun()
 
             elif choice == "💬 학생 질문 통계 및 로그":
                 st.write("### 💬 학생 질문 통계 및 로그 검색 제어판")
@@ -401,8 +418,6 @@ else:
 
             with tab1:
                 st.write("### 🤖 학교 생활 규정집 검색기")
-                
-                # 💡 [업데이트 완료] placeholder 추가되어 불투명한 가이드 글씨 제공
                 user_query = st.text_input(
                     "궁금한 규정 키워드를 입력하세요:", 
                     value=st.session_state.last_query, 
@@ -456,11 +471,15 @@ else:
                     comments_list = post.get("comments", [])
                     with st.expander(f"💬 댓글 ({len(comments_list)}개)"):
                         for comment in comments_list: st.write(f"↳ **{comment.get('author','익명')}**: {comment.get('text','')}")
+                        
+                        # 💡 [업데이트 완료] 댓글 기능 양식에 익명 토글 스위치 제공
                         with st.form(f"s_cmt_form_{idx}", clear_on_submit=True):
                             cmt_text = st.text_input("댓글 작성란", key=f"s_i_cmt_{idx}")
+                            cmt_anonymous = st.checkbox("익명으로 안전하게 댓글 작성", key=f"s_c_anon_{idx}")
                             if st.form_submit_button("등록") and cmt_text:
                                 if check_bad_words(cmt_text)[0]:
-                                    comments_list.append({"author": st.session_state.user_name, "text": cmt_text})
+                                    author_name = "익명의 새내기" if cmt_anonymous else st.session_state.user_name
+                                    comments_list.append({"author": author_name, "text": cmt_text})
                                     post["comments"] = comments_list
                                     save_data(COMMUNITY_FILE, current_community)
                                     st.rerun()
