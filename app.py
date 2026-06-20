@@ -306,11 +306,18 @@ else:
                             save_data(COMMUNITY_FILE, current_community)
                             st.rerun()
 
-            # 📊 [통계 노이즈 필터링 적용] 진짜 규정집에 존재하는 핵심 명사만 집계하도록 업그레이드
+            # 📊 [핵심 단어 완전 역매칭 방식 도입]
             elif choice == "💬 학생 질문 통계 및 로그":
                 st.write("### 💬 학생 질문 통계 및 로그 검색 제어판")
                 
                 col_left, col_right = st.columns([1, 1])
+                
+                # 🔍 학교생활규정집의 핵심 유효 키워드 풀 사전 정의
+                VALID_TARGET_WORDS = [
+                    "휴대폰", "스마트폰", "두발", "복장", "교복", "지각", "조퇴", "결석", 
+                    "벌점", "상점", "포상", "징계", "소지품", "화장", "귀걸이", "피어싱", 
+                    "체육복", "등교", "하교", "전자기기", "태블릿", "노트북", "이성교제", "흡연"
+                ]
                 
                 with col_left:
                     search_uid = st.text_input("👤 검색할 학생 학번 입력 (미입력 시 전체 통계)", key="admin_search_uid")
@@ -318,27 +325,27 @@ else:
                     
                     word_counts = {}
                     
-                    # 💡 핵심 해결 로직: 유저가 검색한 단어들 중 '실제 PDF 본문에 매칭되는 단어'만 통계 처리
-                    def get_filtered_words(chat_history_list):
+                    # 검색 문장 속에서 미리 정의된 핵심 단어들을 역으로 매칭 및 카운트하는 정밀 함수
+                    def get_strict_filtered_words(chat_history_list):
                         counts = {}
                         for chat in chat_history_list:
-                            for word in chat['query'].split():
-                                # 2글자 이상이면서, 실제 학교생활 규정집 텍스트 안에 포함되어 있는 단어만 통계로 인정!
-                                if len(word) >= 2 and word in pdf_content:
-                                    counts[word] = counts.get(word, 0) + 1
+                            query_text = chat['query'].replace(" ", "") # 공백 제거 후 비교로 정밀도 향상
+                            for target_word in VALID_TARGET_WORDS:
+                                if target_word in query_text:
+                                    counts[target_word] = counts.get(target_word, 0) + 1
                         return counts
 
                     if search_uid and search_uid in current_chats:
-                        word_counts = get_filtered_words(current_chats[search_uid])
-                        st.markdown(f"📊 **학번 [{search_uid}] 학생의 유효 규정 키워드 분석 (상위 5개)**")
+                        word_counts = get_strict_filtered_words(current_chats[search_uid])
+                        st.markdown(f"📊 **학번 [{search_uid}] 학생의 핵심 규정 키워드 분석 (상위 5개)**")
                     else:
                         all_chats = []
                         for uid, history in current_chats.items():
                             all_chats.extend(history)
-                        word_counts = get_filtered_words(all_chats)
+                        word_counts = get_strict_filtered_words(all_chats)
                         st.markdown("📊 **전체 학생 실시간 핵심 규정 키워드 분석 (상위 5개)**")
                     
-                    # 내장 가로 막대바 시각화
+                    # 정밀 매칭된 가로 막대바 시각화
                     if word_counts:
                         sorted_words = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)[:5]
                         total_top_clicks = sum([x[1] for x in sorted_words])
