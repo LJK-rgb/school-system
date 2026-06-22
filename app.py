@@ -10,7 +10,7 @@ st.set_page_config(
     page_title="신입생 학교생활 가이드",
     page_icon="https://i.namu.wiki/i/-eAroAg-qXbT2pJ1ZA7PmtbFwbmwAxEwBCc3oLa4UhKh2DixIyG2i6kJw-TrTqEsLkVAOhlGN0nASpm690SRmA.webp",
     layout="centered",
-    initial_sidebar_state="expanded"  # 🔒 메뉴창이 절대 자동으로 안 닫히게 강제 설정
+    initial_sidebar_state="expanded"  # 🔒 메뉴창 자동 접힘 방지
 )
 
 # --- 🎨 [2] 디자인 및 히든 브릿지 완전 은폐 CSS ---
@@ -218,21 +218,42 @@ if not st.session_state.logged_in:
                 st.success("🎉 회원가입 성공! 로그인 탭으로 이동해 주세요.")
 
 else:
+    # ----------------------------------------------------
+    # 🖥️ [새로 설계된 사이드바 UI 영역 - 무조건 고정 표기]
+    # ----------------------------------------------------
     st.sidebar.markdown(f"### 👤 {st.session_state.user_name}님")
-    if st.session_state.user_id == "admin" or st.session_state.role == "master_admin": st.sidebar.markdown("👑 **등급:** `최고 관리자`")
-    elif st.session_state.role == "sub_admin": st.sidebar.markdown("🛡️ **등급:** `일반 관리자`")
-    else: st.sidebar.markdown("🎓 **등급:** `일반 학생 사용자`")
+    is_admin_user = (st.session_state.user_id == "admin" or st.session_state.role in ["master_admin", "sub_admin"])
+    
+    if is_admin_user:
+        if st.session_state.user_id == "admin" or st.session_state.role == "master_admin":
+            st.sidebar.markdown("👑 **등급:** `최고 관리자`")
+        else:
+            st.sidebar.markdown("🛡️ **등급:** `일반 관리자`")
+    else:
+        st.sidebar.markdown("🎓 **등급:** `일반 학생 사용자`")
 
     if st.sidebar.button("로그아웃", use_container_width=True):
         st.session_state.logged_in = False
         st.components.v1.html("<script>localStorage.removeItem('saved_user_info');</script>", height=0)
         st.rerun()
 
-    # ==================== [[ 🛠️ 1. 관리자 전용 제어판 분기 ]] ====================
-    if st.session_state.user_id == "admin" or st.session_state.role in ["master_admin", "sub_admin"]:
-        st.sidebar.markdown("---")
+    st.sidebar.markdown("---")
+    
+    # 등급별 사이드바 라디오 메뉴 생성
+    if is_admin_user:
         st.sidebar.markdown("### 🛠️ 관리자 메뉴 (고정)")
-        
+        admin_menu = ["🔍 전체 계정 관리", "📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 통계 및 로그"]
+        if st.session_state.user_id == "admin" or st.session_state.role == "master_admin":
+            admin_menu.append("➕ 일반 관리자 계정 생성")
+        menu_choice = st.sidebar.radio("제어할 기능을 선택하세요", admin_menu, key="admin_menu_select")
+    else:
+        st.sidebar.markdown("### 🧭 새내기 가이드 메뉴")
+        student_menu = ["🏠 가이드 메인 홈"]
+        menu_choice = st.sidebar.radio("바로가기", student_menu, key="student_menu_select")
+
+
+    # ==================== [[ 🛠️ 1. 관리자 전용 제어판 분기 ]] ====================
+    if is_admin_user:
         def admin_dashboard(choice):
             current_users = load_data(USER_FILE)
             current_chats = load_data(CHAT_FILE)
@@ -395,11 +416,7 @@ else:
                     save_data(USER_FILE, current_users)
                     st.success("관리자 등록 성공!")
 
-        admin_menu = ["🔍 전체 계정 관리", "📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 통계 및 로그"]
-        if st.session_state.user_id == "admin" or st.session_state.role == "master_admin": 
-            if "➕ 일반 관리자 계정 생성" not in admin_menu: admin_menu.append("➕ 일반 관리자 계정 생성")
-        sub_choice = st.sidebar.radio("제어할 기능을 선택하세요", admin_menu)
-        admin_dashboard(sub_choice)
+        admin_dashboard(menu_choice)
 
     # ==================== [[ 🎓 2. 학생 전용 대시보드 분기 ]] ====================
     else:
