@@ -5,11 +5,12 @@ from datetime import datetime
 import pypdf
 import re
 
-# --- 📱 [1] 브라우저 기본 페이지 설정 ---
+# --- 📱 [1] 브라우저 기본 페이지 설정 (사이드바 무조건 열림 강제 고정) ---
 st.set_page_config(
     page_title="신입생 학교생활 가이드",
     page_icon="https://i.namu.wiki/i/-eAroAg-qXbT2pJ1ZA7PmtbFwbmwAxEwBCc3oLa4UhKh2DixIyG2i6kJw-TrTqEsLkVAOhlGN0nASpm690SRmA.webp",
-    layout="centered"
+    layout="centered",
+    initial_sidebar_state="expanded"  # 🔒 메뉴창이 절대 자동으로 안 닫히게 강제 설정
 )
 
 # --- 🎨 [2] 디자인 및 히든 브릿지 완전 은폐 CSS ---
@@ -227,7 +228,7 @@ else:
         st.components.v1.html("<script>localStorage.removeItem('saved_user_info');</script>", height=0)
         st.rerun()
 
-    # ==================== [[ 🛠️ 1. 관리자 전용 제어판 분기 조건 보완 ]] ====================
+    # ==================== [[ 🛠️ 1. 관리자 전용 제어판 분기 ]] ====================
     if st.session_state.user_id == "admin" or st.session_state.role in ["master_admin", "sub_admin"]:
         st.sidebar.markdown("---")
         st.sidebar.markdown("### 🛠️ 관리자 메뉴 (고정)")
