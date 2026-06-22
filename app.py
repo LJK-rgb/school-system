@@ -79,6 +79,9 @@ def load_data(filepath):
     return {}
 
 def save_data(filepath, data):
+    # 빈 데이터가 강제로 저장되는 것을 방지하는 안전장치 추가
+    if not data and os.path.exists(filepath):
+        return
     with open(filepath, "w", encoding="utf-8") as f: 
         json.dump(data, f, ensure_ascii=False, indent=4)
 
@@ -233,7 +236,7 @@ else:
         if st.session_state.role == "master_admin": admin_menu.append("➕ 일반 관리자 계정 생성")
         sub_choice = st.sidebar.radio("제어할 기능을 선택하세요", admin_menu)
         
-        @st.fragment(run_every="3s")
+        # 💡 충돌을 유발하던 무조건적 실시간 3초 fragment를 일반 함수로 변경하여 세션 안정화
         def admin_dashboard(choice):
             current_users = load_data(USER_FILE)
             current_chats = load_data(CHAT_FILE)
@@ -294,7 +297,6 @@ else:
                                 save_data(COMMUNITY_FILE, current_community)
                                 st.rerun()
 
-            # 🏛️ [업데이트 완료] 게시글 삭제 기능 및 개별 댓글 삭제 관리망 추가
             elif choice == "🏛️ 커뮤니티 게시글 관리":
                 if not current_community.get("posts"):
                     st.info("현재 커뮤니티에 올라온 게시글이 없습니다.")
@@ -406,7 +408,7 @@ else:
         if "last_query" not in st.session_state:
             st.session_state.last_query = ""
 
-        @st.fragment(run_every="3s")
+        # 💡 무한 새로고침 충돌을 막기 위해 일반 함수 형태로 대시보드 안정화
         def student_dashboard():
             current_community = load_community_safe()
             current_chats = load_data(CHAT_FILE)
@@ -472,7 +474,6 @@ else:
                     with st.expander(f"💬 댓글 ({len(comments_list)}개)"):
                         for comment in comments_list: st.write(f"↳ **{comment.get('author','익명')}**: {comment.get('text','')}")
                         
-                        # 💡 [업데이트 완료] 댓글 기능 양식에 익명 토글 스위치 제공
                         with st.form(f"s_cmt_form_{idx}", clear_on_submit=True):
                             cmt_text = st.text_input("댓글 작성란", key=f"s_i_cmt_{idx}")
                             cmt_anonymous = st.checkbox("익명으로 안전하게 댓글 작성", key=f"s_c_anon_{idx}")
