@@ -218,7 +218,7 @@ if not st.session_state.logged_in:
 
 else:
     st.sidebar.markdown(f"### 👤 {st.session_state.user_name}님")
-    if st.session_state.role == "master_admin": st.sidebar.markdown("👑 **등급:** `최고 관리자`")
+    if st.session_state.user_id == "admin" or st.session_state.role == "master_admin": st.sidebar.markdown("👑 **등급:** `최고 관리자`")
     elif st.session_state.role == "sub_admin": st.sidebar.markdown("🛡️ **등급:** `일반 관리자`")
     else: st.sidebar.markdown("🎓 **등급:** `일반 학생 사용자`")
 
@@ -227,12 +227,10 @@ else:
         st.components.v1.html("<script>localStorage.removeItem('saved_user_info');</script>", height=0)
         st.rerun()
 
-    # ==================== [[ 🛠️ 1. 관리자 전용 제어판 분기 ]] ====================
-    if st.session_state.role in ["master_admin", "sub_admin"]:
+    # ==================== [[ 🛠️ 1. 관리자 전용 제어판 분기 조건 보완 ]] ====================
+    if st.session_state.user_id == "admin" or st.session_state.role in ["master_admin", "sub_admin"]:
         st.sidebar.markdown("---")
-        
-        # 💡 [업데이트 완료] 닫았을 때 다시 열 수 있는 상시 토글 스위치 배치
-        show_admin_menu = st.sidebar.checkbox("⚙️ 관리자 메뉴 열기", value=True)
+        st.sidebar.markdown("### 🛠️ 관리자 메뉴 (고정)")
         
         def admin_dashboard(choice):
             current_users = load_data(USER_FILE)
@@ -396,13 +394,11 @@ else:
                     save_data(USER_FILE, current_users)
                     st.success("관리자 등록 성공!")
 
-        if show_admin_menu:
-            admin_menu = ["🔍 전체 계정 관리", "📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 통계 및 로그"]
-            if st.session_state.role == "master_admin": admin_menu.append("➕ 일반 관리자 계정 생성")
-            sub_choice = st.sidebar.radio("제어할 기능을 선택하세요", admin_menu)
-            admin_dashboard(sub_choice)
-        else:
-            st.info("💡 사이드바의 '⚙️ 관리자 메뉴 열기'를 누르면 관리 메뉴가 다시 펼쳐집니다.")
+        admin_menu = ["🔍 전체 계정 관리", "📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 통계 및 로그"]
+        if st.session_state.user_id == "admin" or st.session_state.role == "master_admin": 
+            if "➕ 일반 관리자 계정 생성" not in admin_menu: admin_menu.append("➕ 일반 관리자 계정 생성")
+        sub_choice = st.sidebar.radio("제어할 기능을 선택하세요", admin_menu)
+        admin_dashboard(sub_choice)
 
     # ==================== [[ 🎓 2. 학생 전용 대시보드 분기 ]] ====================
     else:
