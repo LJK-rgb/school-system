@@ -13,23 +13,29 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 🔄 [2] 실시간 배경 이미지 및 세부 위치 설정 세션 초기화 ---
+# --- 🔄 [2] 실시간 배경 이미지 및 세부 위치/크기 설정 세션 초기화 ---
 if "bg_image" not in st.session_state:
     st.session_state.bg_image = "https://images.unsplash.com/photo-1519681393784-d120267933ba" 
-if "bg_position" not in st.session_state:
-    st.session_state.bg_position = "center"
+# 미세 조정을 위해 X축, Y축 좌표 변수 생성 (기본값 정중앙 50%, 50%)
+if "bg_pos_x" not in st.session_state:
+    st.session_state.bg_pos_x = 50
+if "bg_pos_y" not in st.session_state:
+    st.session_state.bg_pos_y = 50
+# 확대/축소 비율 변수 생성 (기본값 100%)
+if "bg_zoom" not in st.session_state:
+    st.session_state.bg_zoom = 100
 if "bg_opacity" not in st.session_state:
     st.session_state.bg_opacity = 0.85
 
-# --- 🎨 [3] 동적 배경 반영 CSS (위치 및 투명도 필터 연동) ---
+# --- 🎨 [3] 동적 배경 반영 CSS (X/Y 좌표 및 Zoom 비율 실시간 연동) ---
 st.markdown(
     f"""
     <style>
-        /* 🖼️ 실시간 위치/밝기가 조절되는 배경 이미지 설정 */
+        /* 🖼️ 실시간 위치 좌표/확대비율이 조절되는 배경 이미지 설정 */
         .stApp {{
             background-image: linear-gradient(rgba(14, 17, 23, {st.session_state.bg_opacity}), rgba(14, 17, 23, {st.session_state.bg_opacity})), url("{st.session_state.bg_image}") !important;
-            background-size: cover !important;
-            background-position: {st.session_state.bg_position} !important;
+            background-size: {st.session_state.bg_zoom}% !important; /* 👈 확대/축소 연동 */
+            background-position: {st.session_state.bg_pos_x}% {st.session_state.bg_pos_y}% !important; /* 👈 상하좌우 좌표 연동 */
             background-repeat: no-repeat !important;
             background-attachment: fixed !important;
             padding-bottom: 150px !important;
@@ -282,7 +288,6 @@ else:
 
     st.sidebar.markdown("---")
     
-    # 관리자와 학생 공통 메뉴 분기 구성에 [🎨 배경 화면 설정실] 추가
     if is_admin_user:
         st.sidebar.markdown("### 🛠️ 관리자 대시보드")
         admin_menu = ["🏠 가이드 메인 홈", "🎨 배경 화면 설정실", "🔍 전체 계정 관리", "📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 통계 및 로그"]
@@ -294,16 +299,16 @@ else:
         student_menu = ["🏠 가이드 메인 홈", "🎨 배경 화면 설정실"]
         menu_choice = st.sidebar.radio("메뉴 바로가기", student_menu, key="student_menu_select_final")
 
-    # ==================== [[ 🎨 공통 신규 메뉴: 배경 화면 설정실 ]] ====================
+    # ==================== [[ 🎨 배경 화면 설정실 (방향키 미세조정 + 확대/축소 적용) ]] ====================
     if menu_choice == "🎨 배경 화면 설정실":
         st.subheader("🎨 나만의 배경 화면 커스텀 실험실")
-        st.write("사이트 전체에 실시간으로 반영될 배경 이미지의 주소와 위치를 마우스로 미세 조정해보세요.")
+        st.write("방향키 패드로 사진의 위치를 맞추고, 확대/축소 슬라이더로 크기를 가다듬어 보세요.")
         st.write("---")
         
         col_bg1, col_bg2 = st.columns([1, 1])
         
         with col_bg1:
-            st.write("#### 1️⃣ 이미지 선택 및 링크")
+            st.write("#### 1️⃣ 이미지 소스 변경")
             bg_preset = st.selectbox(
                 "준비된 프리셋 배경 선택",
                 ["기본 어두운 우주", "현대적인 교실 학교", "아늑한 도서관 서재", "직접 인터넷 사진 주소 입력"],
@@ -318,27 +323,51 @@ else:
                 chosen_url = "https://images.unsplash.com/photo-1507842217343-583bb7270b66"
             else:
                 chosen_url = st.text_input("🔗 인터넷 이미지 URL 주소 붙여넣기", value=st.session_state.bg_image)
+            
+            st.write("---")
+            st.write("#### 🔍 이미지 배율 및 밝기 설정")
+            # 🔍 사용자가 요청한 확대/축소 크기 조정 조절 슬라이더 (50% 축소 ~ 300% 확대)
+            chosen_zoom = st.slider("🔍 사진 크기 확대/축소 비율 (%)", 30, 300, int(st.session_state.bg_zoom), step=5)
+            darkness_level = st.slider("🌙 배경 어둡기 필터 레벨 (글자 가독성용)", 0.0, 1.0, float(st.session_state.bg_opacity), step=0.05)
                 
         with col_bg2:
-            st.write("#### 2️⃣ 위치 및 밝기 미세 조정")
-            # 📌 사용자가 요청한 대망의 이미지 정렬 위치 제어 서브메뉴
-            chosen_position = st.selectbox(
-                "📐 사진 배치 정렬 위치 선택",
-                ["center (정중앙 고정)", "top (사진 윗부분 기준)", "bottom (사진 아랫부분 기준)", "left (사진 왼쪽 기준)", "right (사진 오른쪽 기준)"],
-                index=["center", "top", "bottom", "left", "right"].index(st.session_state.bg_position.split()[0])
-            )
-            # 깔끔하게 내부 밸류 추출
-            actual_pos = chosen_position.split()[0]
+            st.write("#### 2️⃣ 🕹️ 방향키 위치 미세 조정 패드")
+            st.write(f"현재 좌표 위치: `X축(좌우): {st.session_state.bg_pos_x}%` | `Y축(상하): {st.session_state.bg_pos_y}%`")
             
-            # 💡 가독성을 위한 배경 막 투명도 슬라이더 (어두울수록 글씨가 잘 보임)
-            darkness_level = st.slider("🌙 배경 어둡기 필터 레벨 (값이 클수록 글자가 선명해짐)", 0.0, 1.0, float(st.session_state.bg_opacity), step=0.05)
+            # 버튼 레이아웃을 실제 오락기 방향키 그리드 모양(3x3)으로 배치
+            btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 1])
+            
+            with btn_col2:
+                if st.button("▲ 위로", use_container_width=True):
+                    st.session_state.bg_pos_y = max(0, st.session_state.bg_pos_y - 5)
+                    st.rerun()
+            
+            btn_col_l, btn_col_c, btn_col_r = st.columns([1, 1, 1])
+            with btn_col_l:
+                if st.button("◀ 왼쪽", use_container_width=True):
+                    st.session_state.bg_pos_x = max(0, st.session_state.bg_pos_x - 5)
+                    st.rerun()
+            with btn_col_c:
+                if st.button("🎯 중앙", use_container_width=True):
+                    st.session_state.bg_pos_x = 50
+                    st.session_state.bg_pos_y = 50
+                    st.rerun()
+            with btn_col_r:
+                if st.button("오른쪽 ▶", use_container_width=True):
+                    st.session_state.bg_pos_x = min(100, st.session_state.bg_pos_x + 5)
+                    st.rerun()
+                    
+            with btn_col2:
+                if st.button("▼ 아래", use_container_width=True):
+                    st.session_state.bg_pos_y = min(100, st.session_state.bg_pos_y + 5)
+                    st.rerun()
 
         st.write("---")
-        if st.button("✨ 설정한 스타일 즉시 사이트에 적용하기", use_container_width=True):
+        if st.button("✨ 설정한 배율 및 URL 최종 반영하기", use_container_width=True):
             st.session_state.bg_image = chosen_url
-            st.session_state.bg_position = actual_pos
+            st.session_state.bg_zoom = chosen_zoom
             st.session_state.bg_opacity = darkness_level
-            st.success("배경 테마 인테리어가 성공적으로 변경되었습니다!")
+            st.success("배경 스타일 개조가 성공적으로 저장되었습니다!")
             st.rerun()
 
     # ==================== [[ 🛠️ 1. 관리자 전용 제어판 분기 ]] ====================
