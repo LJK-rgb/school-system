@@ -14,11 +14,10 @@ st.set_page_config(
 )
 
 # --- 🔄 [2] 실시간 배경 이미지 세션 상태 초기화 ---
-# 기본 배경 이미지 세팅 (원하는 기본 이미지 주소가 있다면 여기에 넣으세요)
 if "bg_image" not in st.session_state:
-    st.session_state.bg_image = "https://images.unsplash.com/photo-1519681393784-d120267933ba" # 예시 은하수 사진
+    st.session_state.bg_image = "https://images.unsplash.com/photo-1519681393784-d120267933ba" 
 
-# --- 🎨 [3] 동적 배경 반영 CSS (st.session_state.bg_image 값을 실시간 주입) ---
+# --- 🎨 [3] 동적 배경 반영 CSS (파이썬 f-string 중괄호 오류 완벽 수정) ---
 st.markdown(
     f"""
     <style>
@@ -30,7 +29,7 @@ st.markdown(
             background-repeat: no-repeat !important;
             background-attachment: fixed !important;
             padding-bottom: 150px !important;
-        }
+        }}
         
         /* 글자색 가독성을 위해 흰색 고정 및 가독성 섀도우 추가 */
         h1, h2, h3, h4, p, span, label, li {{ 
@@ -59,7 +58,7 @@ st.markdown(
         .stButton>button {{
             background-color: #1d4ed8 !important; color: #ffffff !important;
             border-radius: 6px !important; border: none !important; font-weight: bold !important;
-        }
+        }}
         .stButton>button:hover {{ background-color: #2563eb !important; box-shadow: 0px 0px 8px rgba(37, 99, 235, 0.6); }}
         input[type="text"], input[type="password"], textarea {{ color: #ffffff !important; background-color: #1f2937 !important; border: 1px solid #4b5563 !important; }}
         
@@ -282,17 +281,15 @@ else:
         key="bg_theme_selector"
     )
     
-    # 선택에 따른 이미지 매핑
     if bg_choice == "기본 어두운 테마":
         target_bg = "https://images.unsplash.com/photo-1519681393784-d120267933ba"
     elif bg_choice == "학교 전경":
-        target_bg = "https://images.unsplash.com/photo-1541339907198-e08756dedf3f" # 학교 느낌 건물 예시
+        target_bg = "https://images.unsplash.com/photo-1541339907198-e08756dedf3f" 
     elif bg_choice == "아늑한 서재":
         target_bg = "https://images.unsplash.com/photo-1507842217343-583bb7270b66"
     else:
         target_bg = st.sidebar.text_input("🔗 이미지 주소(URL) 입력", value=st.session_state.bg_image)
 
-    # 배경이 바뀌었을 경우 화면 강제 새로고침 리런
     if target_bg != st.session_state.bg_image:
         st.session_state.bg_image = target_bg
         st.rerun()
