@@ -5,22 +5,24 @@ from datetime import datetime
 import pypdf
 import re
 
-# --- 📱 [1] 브라우저 기본 페이지 설정 (사이드바 열림 상태 강제 유지) ---
+# --- 📱 [1] 브라우저 레이아웃 강제 고정 설정 ---
 st.set_page_config(
     page_title="신입생 학교생활 가이드",
     page_icon="https://i.namu.wiki/i/-eAroAg-qXbT2pJ1ZA7PmtbFwbmwAxEwBCc3oLa4UhKh2DixIyG2i6kJw-TrTqEsLkVAOhlGN0nASpm690SRmA.webp",
     layout="centered",
-    initial_sidebar_state="expanded"  # 무조건 열린 채로 시작
+    initial_sidebar_state="expanded"  # 🔒 사이드바 메뉴창이 무조건 열린 상태로 시작하도록 강제 고정
 )
 
-# --- 🎨 [2] 메뉴창이 안 사라지게 잡는 새로운 CSS (버튼 차단 해제) ---
+# --- 🎨 [2] 깨지지 않는 안전한 스타일 CSS ---
 st.markdown(
     """
     <style>
+        /* 기본 배경 및 텍스트 색상 설정 */
         .stApp { background-color: #0e1117 !important; padding-bottom: 150px !important; }
         h1, h2, h3, h4, p, span, label, li { color: #ffffff !important; }
+        .stMarkdown div p { color: #ffffff !important; }
         
-        /* 사이드바 배경 및 폰트 무조건 보이게 고정 */
+        /* 🚨 사이드바가 무조건 화면에 표시되도록 강제 정의 */
         [data-testid="stSidebar"] { 
             background-color: #1e293b !important; 
             border-right: 2px solid #1d4ed8 !important;
@@ -28,12 +30,17 @@ st.markdown(
             display: block !important;
         }
         
-        /* 사이드바 내부 라디오 버튼 스타일 */
+        /* 사이드바 내부 라디오 버튼 가독성 스타일 */
         [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {
-            background-color: #0f172a !important; border: 1px solid #334155 !important;
-            padding: 8px 12px !important; border-radius: 6px !important; margin-bottom: 6px !important;
+            background-color: #0f172a !important; 
+            border: 1px solid #334155 !important;
+            padding: 8px 12px !important; 
+            border-radius: 6px !important; 
+            margin-bottom: 6px !important;
+            color: #ffffff !important;
         }
         
+        /* 버튼 디자인 */
         .stButton>button {
             background-color: #1d4ed8 !important; color: #ffffff !important;
             border-radius: 6px !important; border: none !important; font-weight: bold !important;
@@ -41,7 +48,7 @@ st.markdown(
         .stButton>button:hover { background-color: #2563eb !important; box-shadow: 0px 0px 8px rgba(37, 99, 235, 0.6); }
         input[type="text"], input[type="password"], textarea { color: #ffffff !important; background-color: #1f2937 !important; border: 1px solid #4b5563 !important; }
         
-        /* 로그인 브릿지 인풋 완전 차단 */
+        /* 로그인 브릿지 인풋 완전 숨김 처리 */
         div[data-testid="stTextInput"]:has(input[aria-label="hidden_login_bridge"]) {
             display: none !important;
             visibility: hidden !important;
@@ -50,10 +57,10 @@ st.markdown(
             top: -9999px !important;
         }
 
-        /* ⚠️ 기존에 header 전체를 지우던 코드를 수정하여 사이드바 버튼이 깨지지 않게 방지 */
+        /* 하단 푸터만 안전하게 제거 */
         footer { visibility: hidden !important; display: none !important; }
-        [data-testid="stToolbar"], [data-testid="stDecoration"] { display: none !important; }
         
+        /* 로그 출력 박스 */
         .log-box {
             background-color: #1e293b;
             border: 1px solid #3b82f6;
@@ -228,7 +235,7 @@ if not st.session_state.logged_in:
 
 else:
     # ----------------------------------------------------
-    # 🖥️ [사이드바 UI 구조 렌더링 검증 고정]
+    # 🖥️ [사이드바 UI 렌더링 - 예외 없이 무조건 출력]
     # ----------------------------------------------------
     st.sidebar.markdown(f"### 👤 {st.session_state.user_name}님")
     is_admin_user = (st.session_state.user_id == "admin" or st.session_state.role in ["master_admin", "sub_admin"])
@@ -248,17 +255,17 @@ else:
 
     st.sidebar.markdown("---")
     
-    # 🌟 이제 등급 구분 없이 사이드바 선택지가 비어있지 않도록 확실히 보정
+    # 관리자와 학생 모두 사이드바가 텅 비지 않도록 무조건 라디오 구성 요소 주입
     if is_admin_user:
-        st.sidebar.markdown("### 🛠️ 관리자 메뉴")
+        st.sidebar.markdown("### 🛠️ 관리자 대시보드")
         admin_menu = ["🔍 전체 계정 관리", "📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 통계 및 로그"]
         if st.session_state.user_id == "admin" or st.session_state.role == "master_admin":
             admin_menu.append("➕ 일반 관리자 계정 생성")
-        menu_choice = st.sidebar.radio("제어할 기능을 선택하세요", admin_menu, key="admin_menu_select")
+        menu_choice = st.sidebar.radio("제어할 기능을 선택하세요", admin_menu, key="admin_menu_select_final")
     else:
-        st.sidebar.markdown("### 🧭 가이드 링크")
+        st.sidebar.markdown("### 🧭 새내기 네비게이션")
         student_menu = ["🏠 가이드 메인 홈"]
-        menu_choice = st.sidebar.radio("바로가기", student_menu, key="student_menu_select")
+        menu_choice = st.sidebar.radio("메뉴 바로가기", student_menu, key="student_menu_select_final")
 
     # ==================== [[ 🛠️ 1. 관리자 전용 제어판 분기 ]] ====================
     if is_admin_user:
