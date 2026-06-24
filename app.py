@@ -4,6 +4,7 @@ import os
 from datetime import datetime
 import pypdf
 import re
+import base64  # 👈 로컬 이미지를 웹 배경 데이터로 변환하기 위해 추가
 
 # --- 📱 [1] 브라우저 레이아웃 강제 고정 설정 ---
 st.set_page_config(
@@ -29,7 +30,7 @@ if "bg_opacity" not in st.session_state:
 st.markdown(
     f"""
     <style>
-        /* 🚫 [핵심] 상단 스트림릿 기본 검은색 헤더 및 메뉴 바 완전히 숨기기 */
+        /* 🚫 상단 스트림릿 기본 검은색 헤더 및 메뉴 바 완전히 숨기기 */
         header, [data-testid="stHeader"], .st-emotion-cache-18ni7th, .stAppHeader {{
             background-color: transparent !important;
             background: transparent !important;
@@ -311,30 +312,35 @@ else:
         student_menu = ["🏠 가이드 메인 홈", "🎨 배경 화면 설정실"]
         menu_choice = st.sidebar.radio("메뉴 바로가기", student_menu, key="student_menu_select_final")
 
-    # ==================== [[ 🎨 배경 화면 설정실 ]] ====================
+    # ==================== [[ 🎨 배경 화면 설정실 (파일 직접 업로드 기능 탑재) ]] ====================
     if menu_choice == "🎨 배경 화면 설정실":
         st.subheader("🎨 나만의 배경 화면 커스텀 실험실")
-        st.write("방향키 패드로 사진의 위치를 맞추고, 확대/축소 슬라이더로 크기를 가다듬어 보세요.")
+        st.write("내 컴퓨터나 폰에 있는 이미지를 업로드하고 방향키로 위치를 가다듬어 보세요.")
         st.write("---")
         
         col_bg1, col_bg2 = st.columns([1, 1])
         
         with col_bg1:
-            st.write("#### 1️⃣ 이미지 소스 변경")
-            bg_preset = st.selectbox(
-                "준비된 프리셋 배경 선택",
-                ["기본 어두운 우주", "현대적인 교실 학교", "아늑한 도서관 서재", "직접 인터넷 사진 주소 입력"],
-                key="control_bg_preset"
+            st.write("#### 1️⃣ 이미지 직접 파일 업로드")
+            # 📂 [핵심 기능] 컴퓨터의 로컬 이미지 파일을 올릴 수 있는 업로더 설치
+            uploaded_file = st.file_uploader(
+                "배경으로 쓸 내 사진 파일 선택 (png, jpg, jpeg)", 
+                type=["png", "jpg", "jpeg"],
+                key="bg_file_uploader_v4"
             )
             
-            if bg_preset == "기본 어두운 우주":
-                chosen_url = "https://images.unsplash.com/photo-1519681393784-d120267933ba"
-            elif bg_preset == "현대적인 교실 학교":
-                chosen_url = "https://images.unsplash.com/photo-1541339907198-e08756dedf3f"
-            elif bg_preset == "아늑한 도서관 서재":
-                chosen_url = "https://images.unsplash.com/photo-1507842217343-583bb7270b66"
+            # 업로드된 파일이 있으면 base64 형태로 변환하여 배경 변수에 실시간 임시 보관
+            if uploaded_file is not None:
+                file_bytes = uploaded_file.read()
+                # 파일 확장자 추출
+                file_ext = uploaded_file.name.split('.')[-1].lower()
+                if file_ext == "png": mime_type = "image/png"
+                else: mime_type = "image/jpeg"
+                
+                base64_str = base64.b64encode(file_bytes).decode("utf-8")
+                chosen_url = f"data:{mime_type};base64,{base64_str}"
             else:
-                chosen_url = st.text_input("🔗 인터넷 이미지 URL 주소 붙여넣기", value=st.session_state.bg_image)
+                chosen_url = st.session_state.bg_image  # 업로드 안 했을 때는 기존 이미지 유지
             
             st.write("---")
             st.write("#### 🔍 이미지 배율 및 밝기 설정")
@@ -373,7 +379,7 @@ else:
                     st.rerun()
 
         st.write("---")
-        if st.button("✨ 설정한 배율 및 URL 최종 반영하기", use_container_width=True):
+        if st.button("✨ 업로드한 사진과 설정을 최종 적용하기", use_container_width=True):
             st.session_state.bg_image = chosen_url
             st.session_state.bg_zoom = chosen_zoom
             st.session_state.bg_opacity = darkness_level
