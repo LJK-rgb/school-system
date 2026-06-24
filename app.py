@@ -10,19 +10,17 @@ st.set_page_config(
     page_title="신입생 학교생활 가이드",
     page_icon="https://i.namu.wiki/i/-eAroAg-qXbT2pJ1ZA7PmtbFwbmwAxEwBCc3oLa4UhKh2DixIyG2i6kJw-TrTqEsLkVAOhlGN0nASpm690SRmA.webp",
     layout="centered",
-    initial_sidebar_state="expanded"  # 🔒 사이드바 메뉴창이 무조건 열린 상태로 시작하도록 강제 고정
+    initial_sidebar_state="expanded"
 )
 
 # --- 🎨 [2] 깨지지 않는 안전한 스타일 CSS ---
 st.markdown(
     """
     <style>
-        /* 기본 배경 및 텍스트 색상 설정 */
         .stApp { background-color: #0e1117 !important; padding-bottom: 150px !important; }
         h1, h2, h3, h4, p, span, label, li { color: #ffffff !important; }
         .stMarkdown div p { color: #ffffff !important; }
         
-        /* 🚨 사이드바가 무조건 화면에 표시되도록 강제 정의 */
         [data-testid="stSidebar"] { 
             background-color: #1e293b !important; 
             border-right: 2px solid #1d4ed8 !important;
@@ -30,7 +28,6 @@ st.markdown(
             display: block !important;
         }
         
-        /* 사이드바 내부 라디오 버튼 가독성 스타일 */
         [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {
             background-color: #0f172a !important; 
             border: 1px solid #334155 !important;
@@ -40,7 +37,6 @@ st.markdown(
             color: #ffffff !important;
         }
         
-        /* 버튼 디자인 */
         .stButton>button {
             background-color: #1d4ed8 !important; color: #ffffff !important;
             border-radius: 6px !important; border: none !important; font-weight: bold !important;
@@ -48,7 +44,6 @@ st.markdown(
         .stButton>button:hover { background-color: #2563eb !important; box-shadow: 0px 0px 8px rgba(37, 99, 235, 0.6); }
         input[type="text"], input[type="password"], textarea { color: #ffffff !important; background-color: #1f2937 !important; border: 1px solid #4b5563 !important; }
         
-        /* 로그인 브릿지 인풋 완전 숨김 처리 */
         div[data-testid="stTextInput"]:has(input[aria-label="hidden_login_bridge"]) {
             display: none !important;
             visibility: hidden !important;
@@ -57,10 +52,8 @@ st.markdown(
             top: -9999px !important;
         }
 
-        /* 하단 푸터만 안전하게 제거 */
         footer { visibility: hidden !important; display: none !important; }
         
-        /* 로그 출력 박스 */
         .log-box {
             background-color: #1e293b;
             border: 1px solid #3b82f6;
@@ -75,10 +68,13 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-USER_FILE = "users.json"
-CHAT_FILE = "chats.json"
-COMMUNITY_FILE = "community.json"
-PDF_FILE = "2025. 학생생활규정.pdf"
+# 🔒 [서버 리셋 대비] 절대 경로 강제 고정 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+USER_FILE = os.path.join(BASE_DIR, "users.json")
+CHAT_FILE = os.path.join(BASE_DIR, "chats.json")
+COMMUNITY_FILE = os.path.join(BASE_DIR, "community.json")
+PDF_FILE = os.path.join(BASE_DIR, "2025. 학생생활규정.pdf")
+
 BAD_WORDS = ["바보", "멍청이", "지랄", "존나", "개새끼", "시발", "새끼", "미친"]
 
 def check_bad_words(text):
@@ -86,20 +82,31 @@ def check_bad_words(text):
         if word in text: return False, word
     return True, ""
 
+# 💾 안전한 데이터 로드 (서버 초기화 시 빈 데이터 오버라이트 방지)
 def load_data(filepath):
     if os.path.exists(filepath):
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 content = f.read().strip()
-                if content: return json.loads(content)
-        except: pass
+                if content: 
+                    return json.loads(content)
+        except Exception as e:
+            pass
     return {}
 
+# 💾 원자적 파일 저장 (쓰다가 서버 꺼져도 파일 깨짐 방지)
 def save_data(filepath, data):
-    if not data and os.path.exists(filepath):
-        return
-    with open(filepath, "w", encoding="utf-8") as f: 
-        json.dump(data, f, ensure_ascii=False, indent=4)
+    try:
+        temp_filepath = filepath + ".tmp"
+        with open(temp_filepath, "w", encoding="utf-8") as f: 
+            json.dump(data, f, ensure_ascii=False, indent=4)
+        if os.path.exists(temp_filepath) and os.path.getsize(temp_filepath) > 0:
+            if os.path.exists(filepath):
+                os.remove(filepath)
+            os.rename(temp_filepath, filepath)
+    except Exception as e:
+        if os.path.exists(temp_filepath):
+            os.remove(temp_filepath)
 
 def load_community_safe():
     data = load_data(COMMUNITY_FILE)
@@ -140,11 +147,13 @@ def search_pdf_with_highlight(query, pdf_text):
         return output
     return "🔍 규정집에서 관련 조항을 찾지 못했습니다."
 
+# 앱 실행 시 파일 시스템 로드
 users = load_data(USER_FILE)
 chats = load_data(CHAT_FILE)
 community = load_community_safe()
 pdf_content = load_pdf_text(PDF_FILE)
 
+# 관리자 기본 계정 영구 보존 보장
 if "admin" not in users:
     users["admin"] = {"password": "ahsknue2026_2026!", "name": "최고관리자", "role": "master_admin"}
     save_data(USER_FILE, users)
@@ -155,7 +164,7 @@ if "logged_in" not in st.session_state:
     st.session_state.user_name = None
     st.session_state.role = "user"
 
-# --- 🔐 로그인 복구 브릿지 ---
+# --- 🔐 브라우저 로컬스토리지 자동 로그인 자동 복구 브릿지 ---
 if not st.session_state.logged_in:
     bridge_val = st.text_input("hidden_login_bridge", key="hidden_login_bridge", label_visibility="collapsed")
     st.components.v1.html(
@@ -178,11 +187,14 @@ if not st.session_state.logged_in:
     if bridge_val:
         try:
             u_info = json.loads(bridge_val)
-            st.session_state.logged_in = True
-            st.session_state.user_id = u_info["id"]
-            st.session_state.user_name = u_info["name"]
-            st.session_state.role = u_info["role"]
-            st.rerun()
+            # 서버 재시작 후에도 로컬 저장된 유저 데이터가 유효한지 파일에서 재검증
+            current_users = load_data(USER_FILE)
+            if u_info["id"] in current_users:
+                st.session_state.logged_in = True
+                st.session_state.user_id = u_info["id"]
+                st.session_state.user_name = current_users[u_info["id"]]["name"]
+                st.session_state.role = current_users[u_info["id"]].get("role", "user")
+                st.rerun()
         except: pass
 
 col_logo, col_title = st.columns([1, 4])
@@ -229,13 +241,16 @@ if not st.session_state.logged_in:
         if st.button("가입하기", use_container_width=True):
             if new_id and new_name and new_pw:
                 users = load_data(USER_FILE)
-                users[new_id] = {"password": new_pw, "name": new_name, "role": "user"}
-                save_data(USER_FILE, users)
-                st.success("🎉 회원가입 성공! 로그인 탭으로 이동해 주세요.")
+                if new_id in users:
+                    st.error(" 이미 존재하는 학번/아이디입니다.")
+                else:
+                    users[new_id] = {"password": new_pw, "name": new_name, "role": "user"}
+                    save_data(USER_FILE, users)
+                    st.success("🎉 회원가입 성공! 로그인 탭으로 이동해 주세요.")
 
 else:
     # ----------------------------------------------------
-    # 🖥️ [사이드바 UI 렌더링 - 예외 없이 무조건 출력]
+    # 🖥️ [사이드바 UI 렌더링 - 예외 없이 고정 출력]
     # ----------------------------------------------------
     st.sidebar.markdown(f"### 👤 {st.session_state.user_name}님")
     is_admin_user = (st.session_state.user_id == "admin" or st.session_state.role in ["master_admin", "sub_admin"])
@@ -255,7 +270,6 @@ else:
 
     st.sidebar.markdown("---")
     
-    # 관리자와 학생 모두 사이드바가 텅 비지 않도록 무조건 라디오 구성 요소 주입
     if is_admin_user:
         st.sidebar.markdown("### 🛠️ 관리자 대시보드")
         admin_menu = ["🔍 전체 계정 관리", "📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 통계 및 로그"]
