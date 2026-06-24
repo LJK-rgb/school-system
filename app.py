@@ -13,28 +13,32 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 🔄 [2] 실시간 배경 이미지 세션 상태 초기화 ---
+# --- 🔄 [2] 실시간 배경 이미지 및 세부 위치 설정 세션 초기화 ---
 if "bg_image" not in st.session_state:
     st.session_state.bg_image = "https://images.unsplash.com/photo-1519681393784-d120267933ba" 
+if "bg_position" not in st.session_state:
+    st.session_state.bg_position = "center"
+if "bg_opacity" not in st.session_state:
+    st.session_state.bg_opacity = 0.85
 
-# --- 🎨 [3] 동적 배경 반영 CSS (파이썬 f-string 중괄호 오류 완벽 수정) ---
+# --- 🎨 [3] 동적 배경 반영 CSS (위치 및 투명도 필터 연동) ---
 st.markdown(
     f"""
     <style>
-        /* 🖼️ 실시간으로 바뀌는 배경 이미지 설정 */
+        /* 🖼️ 실시간 위치/밝기가 조절되는 배경 이미지 설정 */
         .stApp {{
-            background-image: linear-gradient(rgba(14, 17, 23, 0.85), rgba(14, 17, 23, 0.85)), url("{st.session_state.bg_image}") !important;
+            background-image: linear-gradient(rgba(14, 17, 23, {st.session_state.bg_opacity}), rgba(14, 17, 23, {st.session_state.bg_opacity})), url("{st.session_state.bg_image}") !important;
             background-size: cover !important;
-            background-position: center !important;
+            background-position: {st.session_state.bg_position} !important;
             background-repeat: no-repeat !important;
             background-attachment: fixed !important;
             padding-bottom: 150px !important;
         }}
         
-        /* 글자색 가독성을 위해 흰색 고정 및 가독성 섀도우 추가 */
+        /* 글자 섀도우 처리로 배경에 구애받지 않는 가독성 확보 */
         h1, h2, h3, h4, p, span, label, li {{ 
             color: #ffffff !important; 
-            text-shadow: 1px 1px 4px rgba(0,0,0,0.8);
+            text-shadow: 1px 1px 4px rgba(0,0,0,0.85);
         }}
         .stMarkdown div p {{ color: #ffffff !important; }}
         
@@ -258,7 +262,7 @@ if not st.session_state.logged_in:
 
 else:
     # ----------------------------------------------------
-    # 🖥️ [사이드바 UI 렌더링]
+    # 🖥️ [사이드바 메뉴 렌더링]
     # ----------------------------------------------------
     st.sidebar.markdown(f"### 👤 {st.session_state.user_name}님")
     is_admin_user = (st.session_state.user_id == "admin" or st.session_state.role in ["master_admin", "sub_admin"])
@@ -271,29 +275,6 @@ else:
     else:
         st.sidebar.markdown("🎓 **등급:** `일반 학생 사용자`")
 
-    # ⚙️ [실시간 테마/배경 변경 제어기 - 사이드바 배치]
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("### 🎨 실시간 배경 화면 제어")
-    
-    bg_choice = st.sidebar.selectbox(
-        "테마 스타일 선택",
-        ["기본 어두운 테마", "학교 전경", "아늑한 서재", "직접 이미지 URL 입력"],
-        key="bg_theme_selector"
-    )
-    
-    if bg_choice == "기본 어두운 테마":
-        target_bg = "https://images.unsplash.com/photo-1519681393784-d120267933ba"
-    elif bg_choice == "학교 전경":
-        target_bg = "https://images.unsplash.com/photo-1541339907198-e08756dedf3f" 
-    elif bg_choice == "아늑한 서재":
-        target_bg = "https://images.unsplash.com/photo-1507842217343-583bb7270b66"
-    else:
-        target_bg = st.sidebar.text_input("🔗 이미지 주소(URL) 입력", value=st.session_state.bg_image)
-
-    if target_bg != st.session_state.bg_image:
-        st.session_state.bg_image = target_bg
-        st.rerun()
-
     if st.sidebar.button("로그아웃", use_container_width=True):
         st.session_state.logged_in = False
         st.components.v1.html("<script>localStorage.removeItem('saved_user_info');</script>", height=0)
@@ -301,19 +282,67 @@ else:
 
     st.sidebar.markdown("---")
     
+    # 관리자와 학생 공통 메뉴 분기 구성에 [🎨 배경 화면 설정실] 추가
     if is_admin_user:
         st.sidebar.markdown("### 🛠️ 관리자 대시보드")
-        admin_menu = ["🔍 전체 계정 관리", "📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 통계 및 로그"]
+        admin_menu = ["🏠 가이드 메인 홈", "🎨 배경 화면 설정실", "🔍 전체 계정 관리", "📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 통계 및 로그"]
         if st.session_state.user_id == "admin" or st.session_state.role == "master_admin":
             admin_menu.append("➕ 일반 관리자 계정 생성")
         menu_choice = st.sidebar.radio("제어할 기능을 선택하세요", admin_menu, key="admin_menu_select_final")
     else:
         st.sidebar.markdown("### 🧭 새내기 네비게이션")
-        student_menu = ["🏠 가이드 메인 홈"]
+        student_menu = ["🏠 가이드 메인 홈", "🎨 배경 화면 설정실"]
         menu_choice = st.sidebar.radio("메뉴 바로가기", student_menu, key="student_menu_select_final")
 
+    # ==================== [[ 🎨 공통 신규 메뉴: 배경 화면 설정실 ]] ====================
+    if menu_choice == "🎨 배경 화면 설정실":
+        st.subheader("🎨 나만의 배경 화면 커스텀 실험실")
+        st.write("사이트 전체에 실시간으로 반영될 배경 이미지의 주소와 위치를 마우스로 미세 조정해보세요.")
+        st.write("---")
+        
+        col_bg1, col_bg2 = st.columns([1, 1])
+        
+        with col_bg1:
+            st.write("#### 1️⃣ 이미지 선택 및 링크")
+            bg_preset = st.selectbox(
+                "준비된 프리셋 배경 선택",
+                ["기본 어두운 우주", "현대적인 교실 학교", "아늑한 도서관 서재", "직접 인터넷 사진 주소 입력"],
+                key="control_bg_preset"
+            )
+            
+            if bg_preset == "기본 어두운 우주":
+                chosen_url = "https://images.unsplash.com/photo-1519681393784-d120267933ba"
+            elif bg_preset == "현대적인 교실 학교":
+                chosen_url = "https://images.unsplash.com/photo-1541339907198-e08756dedf3f"
+            elif bg_preset == "아늑한 도서관 서재":
+                chosen_url = "https://images.unsplash.com/photo-1507842217343-583bb7270b66"
+            else:
+                chosen_url = st.text_input("🔗 인터넷 이미지 URL 주소 붙여넣기", value=st.session_state.bg_image)
+                
+        with col_bg2:
+            st.write("#### 2️⃣ 위치 및 밝기 미세 조정")
+            # 📌 사용자가 요청한 대망의 이미지 정렬 위치 제어 서브메뉴
+            chosen_position = st.selectbox(
+                "📐 사진 배치 정렬 위치 선택",
+                ["center (정중앙 고정)", "top (사진 윗부분 기준)", "bottom (사진 아랫부분 기준)", "left (사진 왼쪽 기준)", "right (사진 오른쪽 기준)"],
+                index=["center", "top", "bottom", "left", "right"].index(st.session_state.bg_position.split()[0])
+            )
+            # 깔끔하게 내부 밸류 추출
+            actual_pos = chosen_position.split()[0]
+            
+            # 💡 가독성을 위한 배경 막 투명도 슬라이더 (어두울수록 글씨가 잘 보임)
+            darkness_level = st.slider("🌙 배경 어둡기 필터 레벨 (값이 클수록 글자가 선명해짐)", 0.0, 1.0, float(st.session_state.bg_opacity), step=0.05)
+
+        st.write("---")
+        if st.button("✨ 설정한 스타일 즉시 사이트에 적용하기", use_container_width=True):
+            st.session_state.bg_image = chosen_url
+            st.session_state.bg_position = actual_pos
+            st.session_state.bg_opacity = darkness_level
+            st.success("배경 테마 인테리어가 성공적으로 변경되었습니다!")
+            st.rerun()
+
     # ==================== [[ 🛠️ 1. 관리자 전용 제어판 분기 ]] ====================
-    if is_admin_user:
+    elif is_admin_user and menu_choice != "🏠 가이드 메인 홈":
         def admin_dashboard(choice):
             current_users = load_data(USER_FILE)
             current_chats = load_data(CHAT_FILE)
@@ -473,8 +502,8 @@ else:
 
         admin_dashboard(menu_choice)
 
-    # ==================== [[ 🎓 2. 학생 전용 대시보드 분기 ]] ====================
-    else:
+    # ==================== [[ 🎓 2. 학생 및 홈 메인보드 분기 ]] ====================
+    elif menu_choice == "🏠 가이드 메인 홈":
         if "search_result" not in st.session_state:
             st.session_state.search_result = ""
         if "last_query" not in st.session_state:
