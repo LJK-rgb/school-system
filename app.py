@@ -5,26 +5,35 @@ from datetime import datetime
 import pypdf
 import re
 
-# --- 📱 [1] 브라우저 기본 페이지 설정 (사이드바 무조건 열림 강제 고정) ---
+# --- 📱 [1] 브라우저 기본 페이지 설정 (사이드바 열림 상태 강제 유지) ---
 st.set_page_config(
     page_title="신입생 학교생활 가이드",
     page_icon="https://i.namu.wiki/i/-eAroAg-qXbT2pJ1ZA7PmtbFwbmwAxEwBCc3oLa4UhKh2DixIyG2i6kJw-TrTqEsLkVAOhlGN0nASpm690SRmA.webp",
     layout="centered",
-    initial_sidebar_state="expanded"  # 🔒 메뉴창 자동 접힘 방지
+    initial_sidebar_state="expanded"  # 무조건 열린 채로 시작
 )
 
-# --- 🎨 [2] 디자인 및 히든 브릿지 완전 은폐 CSS ---
+# --- 🎨 [2] 메뉴창이 안 사라지게 잡는 새로운 CSS (버튼 차단 해제) ---
 st.markdown(
     """
     <style>
         .stApp { background-color: #0e1117 !important; padding-bottom: 150px !important; }
         h1, h2, h3, h4, p, span, label, li { color: #ffffff !important; }
-        .stMarkdown div p { color: #ffffff !important; }
-        [data-testid="stSidebar"] { background-color: #1e293b !important; border-right: 2px solid #1d4ed8 !important; }
+        
+        /* 사이드바 배경 및 폰트 무조건 보이게 고정 */
+        [data-testid="stSidebar"] { 
+            background-color: #1e293b !important; 
+            border-right: 2px solid #1d4ed8 !important;
+            visibility: visible !important;
+            display: block !important;
+        }
+        
+        /* 사이드바 내부 라디오 버튼 스타일 */
         [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {
             background-color: #0f172a !important; border: 1px solid #334155 !important;
             padding: 8px 12px !important; border-radius: 6px !important; margin-bottom: 6px !important;
         }
+        
         .stButton>button {
             background-color: #1d4ed8 !important; color: #ffffff !important;
             border-radius: 6px !important; border: none !important; font-weight: bold !important;
@@ -41,10 +50,10 @@ st.markdown(
             top: -9999px !important;
         }
 
-        #MainMenu, header, footer { visibility: hidden !important; display: none !important; }
-        [data-testid="stToolbar"], [data-testid="stDecoration"], [data-testid="stStatusWidget"] { display: none !important; }
+        /* ⚠️ 기존에 header 전체를 지우던 코드를 수정하여 사이드바 버튼이 깨지지 않게 방지 */
+        footer { visibility: hidden !important; display: none !important; }
+        [data-testid="stToolbar"], [data-testid="stDecoration"] { display: none !important; }
         
-        /* 📦 우측 로그 출력 전용 스타일 박스 */
         .log-box {
             background-color: #1e293b;
             border: 1px solid #3b82f6;
@@ -219,7 +228,7 @@ if not st.session_state.logged_in:
 
 else:
     # ----------------------------------------------------
-    # 🖥️ [새로 설계된 사이드바 UI 영역 - 무조건 고정 표기]
+    # 🖥️ [사이드바 UI 구조 렌더링 검증 고정]
     # ----------------------------------------------------
     st.sidebar.markdown(f"### 👤 {st.session_state.user_name}님")
     is_admin_user = (st.session_state.user_id == "admin" or st.session_state.role in ["master_admin", "sub_admin"])
@@ -239,18 +248,17 @@ else:
 
     st.sidebar.markdown("---")
     
-    # 등급별 사이드바 라디오 메뉴 생성
+    # 🌟 이제 등급 구분 없이 사이드바 선택지가 비어있지 않도록 확실히 보정
     if is_admin_user:
-        st.sidebar.markdown("### 🛠️ 관리자 메뉴 (고정)")
+        st.sidebar.markdown("### 🛠️ 관리자 메뉴")
         admin_menu = ["🔍 전체 계정 관리", "📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 통계 및 로그"]
         if st.session_state.user_id == "admin" or st.session_state.role == "master_admin":
             admin_menu.append("➕ 일반 관리자 계정 생성")
         menu_choice = st.sidebar.radio("제어할 기능을 선택하세요", admin_menu, key="admin_menu_select")
     else:
-        st.sidebar.markdown("### 🧭 새내기 가이드 메뉴")
+        st.sidebar.markdown("### 🧭 가이드 링크")
         student_menu = ["🏠 가이드 메인 홈"]
         menu_choice = st.sidebar.radio("바로가기", student_menu, key="student_menu_select")
-
 
     # ==================== [[ 🛠️ 1. 관리자 전용 제어판 분기 ]] ====================
     if is_admin_user:
@@ -344,7 +352,6 @@ else:
 
             elif choice == "💬 학생 질문 통계 및 로그":
                 st.write("### 💬 학생 질문 통계 및 로그 검색 제어판")
-                
                 col_left, col_right = st.columns([1, 1])
                 
                 VALID_TARGET_WORDS = [
@@ -356,7 +363,6 @@ else:
                 with col_left:
                     search_uid = st.text_input("👤 검색할 학생 학번 입력 (미입력 시 전체 통계)", key="admin_search_uid")
                     st.write("---")
-                    
                     word_counts = {}
                     
                     def get_strict_filtered_words(chat_history_list):
@@ -381,7 +387,6 @@ else:
                     if word_counts:
                         sorted_words = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)[:5]
                         total_top_clicks = sum([x[1] for x in sorted_words])
-                        
                         for word, count in sorted_words:
                             percentage = (count / total_top_clicks) if total_top_clicks > 0 else 0
                             st.write(f"🏷️ **{word}** ({count}회)")
@@ -391,7 +396,6 @@ else:
 
                 with col_right:
                     st.markdown("#### 📦 학생 개별 로그 출력 박스")
-                    
                     log_html = "<div class='log-box'>"
                     if search_uid:
                         if search_uid in current_chats:
@@ -403,7 +407,6 @@ else:
                             log_html += "<p style='color:#ef4444;'>⚠️ 해당 학번의 질문 기록이 존재하지 않습니다.</p>"
                     else:
                         log_html += "<p style='color:#94a3b8; font-size:13px;'>상단의 학번 검색창에 학번을 입력하시면 해당 학생의 실시간 질문 히스토리가 이 박스 영역에 표기됩니다.</p>"
-                    
                     log_html += "</div>"
                     st.markdown(log_html, unsafe_allow_html=True)
 
