@@ -16,26 +16,38 @@ st.set_page_config(
 # --- 🔄 [2] 실시간 배경 이미지 및 세부 위치/크기 설정 세션 초기화 ---
 if "bg_image" not in st.session_state:
     st.session_state.bg_image = "https://images.unsplash.com/photo-1519681393784-d120267933ba" 
-# 미세 조정을 위해 X축, Y축 좌표 변수 생성 (기본값 정중앙 50%, 50%)
 if "bg_pos_x" not in st.session_state:
     st.session_state.bg_pos_x = 50
 if "bg_pos_y" not in st.session_state:
     st.session_state.bg_pos_y = 50
-# 확대/축소 비율 변수 생성 (기본값 100%)
 if "bg_zoom" not in st.session_state:
     st.session_state.bg_zoom = 100
 if "bg_opacity" not in st.session_state:
     st.session_state.bg_opacity = 0.85
 
-# --- 🎨 [3] 동적 배경 반영 CSS (X/Y 좌표 및 Zoom 비율 실시간 연동) ---
+# --- 🎨 [3] 동적 배경 반영 및 상단 검은 창 제거 CSS ---
 st.markdown(
     f"""
     <style>
+        /* 🚫 [핵심] 상단 스트림릿 기본 검은색 헤더 및 메뉴 바 완전히 숨기기 */
+        header, [data-testid="stHeader"], .st-emotion-cache-18ni7th, .stAppHeader {{
+            background-color: transparent !important;
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+            height: 0px !important;
+        }}
+        
+        /* 🚫 상단 여백(패딩)을 없애서 사진이 위로 밀착되도록 조정 */
+        .main .block-container {{
+            padding-top: 2rem !important;
+        }}
+        
         /* 🖼️ 실시간 위치 좌표/확대비율이 조절되는 배경 이미지 설정 */
         .stApp {{
             background-image: linear-gradient(rgba(14, 17, 23, {st.session_state.bg_opacity}), rgba(14, 17, 23, {st.session_state.bg_opacity})), url("{st.session_state.bg_image}") !important;
-            background-size: {st.session_state.bg_zoom}% !important; /* 👈 확대/축소 연동 */
-            background-position: {st.session_state.bg_pos_x}% {st.session_state.bg_pos_y}% !important; /* 👈 상하좌우 좌표 연동 */
+            background-size: {st.session_state.bg_zoom}% !important;
+            background-position: {st.session_state.bg_pos_x}% {st.session_state.bg_pos_y}% !important;
             background-repeat: no-repeat !important;
             background-attachment: fixed !important;
             padding-bottom: 150px !important;
@@ -299,7 +311,7 @@ else:
         student_menu = ["🏠 가이드 메인 홈", "🎨 배경 화면 설정실"]
         menu_choice = st.sidebar.radio("메뉴 바로가기", student_menu, key="student_menu_select_final")
 
-    # ==================== [[ 🎨 배경 화면 설정실 (방향키 미세조정 + 확대/축소 적용) ]] ====================
+    # ==================== [[ 🎨 배경 화면 설정실 ]] ====================
     if menu_choice == "🎨 배경 화면 설정실":
         st.subheader("🎨 나만의 배경 화면 커스텀 실험실")
         st.write("방향키 패드로 사진의 위치를 맞추고, 확대/축소 슬라이더로 크기를 가다듬어 보세요.")
@@ -326,7 +338,6 @@ else:
             
             st.write("---")
             st.write("#### 🔍 이미지 배율 및 밝기 설정")
-            # 🔍 사용자가 요청한 확대/축소 크기 조정 조절 슬라이더 (50% 축소 ~ 300% 확대)
             chosen_zoom = st.slider("🔍 사진 크기 확대/축소 비율 (%)", 30, 300, int(st.session_state.bg_zoom), step=5)
             darkness_level = st.slider("🌙 배경 어둡기 필터 레벨 (글자 가독성용)", 0.0, 1.0, float(st.session_state.bg_opacity), step=0.05)
                 
@@ -334,7 +345,6 @@ else:
             st.write("#### 2️⃣ 🕹️ 방향키 위치 미세 조정 패드")
             st.write(f"현재 좌표 위치: `X축(좌우): {st.session_state.bg_pos_x}%` | `Y축(상하): {st.session_state.bg_pos_y}%`")
             
-            # 버튼 레이아웃을 실제 오락기 방향키 그리드 모양(3x3)으로 배치
             btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 1])
             
             with btn_col2:
