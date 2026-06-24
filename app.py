@@ -13,48 +13,67 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 🎨 [2] 깨지지 않는 안전한 스타일 CSS ---
+# --- 🔄 [2] 실시간 배경 이미지 세션 상태 초기화 ---
+# 기본 배경 이미지 세팅 (원하는 기본 이미지 주소가 있다면 여기에 넣으세요)
+if "bg_image" not in st.session_state:
+    st.session_state.bg_image = "https://images.unsplash.com/photo-1519681393784-d120267933ba" # 예시 은하수 사진
+
+# --- 🎨 [3] 동적 배경 반영 CSS (st.session_state.bg_image 값을 실시간 주입) ---
 st.markdown(
-    """
+    f"""
     <style>
-        .stApp { background-color: #0e1117 !important; padding-bottom: 150px !important; }
-        h1, h2, h3, h4, p, span, label, li { color: #ffffff !important; }
-        .stMarkdown div p { color: #ffffff !important; }
+        /* 🖼️ 실시간으로 바뀌는 배경 이미지 설정 */
+        .stApp {{
+            background-image: linear-gradient(rgba(14, 17, 23, 0.85), rgba(14, 17, 23, 0.85)), url("{st.session_state.bg_image}") !important;
+            background-size: cover !important;
+            background-position: center !important;
+            background-repeat: no-repeat !important;
+            background-attachment: fixed !important;
+            padding-bottom: 150px !important;
+        }
         
-        [data-testid="stSidebar"] { 
-            background-color: #1e293b !important; 
+        /* 글자색 가독성을 위해 흰색 고정 및 가독성 섀도우 추가 */
+        h1, h2, h3, h4, p, span, label, li {{ 
+            color: #ffffff !important; 
+            text-shadow: 1px 1px 4px rgba(0,0,0,0.8);
+        }}
+        .stMarkdown div p {{ color: #ffffff !important; }}
+        
+        /* 사이드바 스타일 고정 */
+        [data-testid="stSidebar"] {{ 
+            background-color: rgba(30, 41, 59, 0.95) !important; 
             border-right: 2px solid #1d4ed8 !important;
             visibility: visible !important;
             display: block !important;
-        }
+        }}
         
-        [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {
+        [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {{
             background-color: #0f172a !important; 
             border: 1px solid #334155 !important;
             padding: 8px 12px !important; 
             border-radius: 6px !important; 
             margin-bottom: 6px !important;
             color: #ffffff !important;
-        }
+        }}
         
-        .stButton>button {
+        .stButton>button {{
             background-color: #1d4ed8 !important; color: #ffffff !important;
             border-radius: 6px !important; border: none !important; font-weight: bold !important;
         }
-        .stButton>button:hover { background-color: #2563eb !important; box-shadow: 0px 0px 8px rgba(37, 99, 235, 0.6); }
-        input[type="text"], input[type="password"], textarea { color: #ffffff !important; background-color: #1f2937 !important; border: 1px solid #4b5563 !important; }
+        .stButton>button:hover {{ background-color: #2563eb !important; box-shadow: 0px 0px 8px rgba(37, 99, 235, 0.6); }}
+        input[type="text"], input[type="password"], textarea {{ color: #ffffff !important; background-color: #1f2937 !important; border: 1px solid #4b5563 !important; }}
         
-        div[data-testid="stTextInput"]:has(input[aria-label="hidden_login_bridge"]) {
+        div[data-testid="stTextInput"]:has(input[aria-label="hidden_login_bridge"]) {{
             display: none !important;
             visibility: hidden !important;
             height: 0px !important;
             position: absolute !important;
             top: -9999px !important;
-        }
+        }}
 
-        footer { visibility: hidden !important; display: none !important; }
+        footer {{ visibility: hidden !important; display: none !important; }}
         
-        .log-box {
+        .log-box {{
             background-color: #1e293b;
             border: 1px solid #3b82f6;
             border-radius: 8px;
@@ -62,13 +81,12 @@ st.markdown(
             margin-top: 10px;
             max-height: 400px;
             overflow-y: auto;
-        }
+        }}
     </style>
     """,
     unsafe_allow_html=True
 )
 
-# 🔒 [서버 리셋 대비] 절대 경로 강제 고정 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 USER_FILE = os.path.join(BASE_DIR, "users.json")
 CHAT_FILE = os.path.join(BASE_DIR, "chats.json")
@@ -82,31 +100,25 @@ def check_bad_words(text):
         if word in text: return False, word
     return True, ""
 
-# 💾 안전한 데이터 로드 (서버 초기화 시 빈 데이터 오버라이트 방지)
 def load_data(filepath):
     if os.path.exists(filepath):
         try:
             with open(filepath, "r", encoding="utf-8") as f:
                 content = f.read().strip()
-                if content: 
-                    return json.loads(content)
-        except Exception as e:
-            pass
+                if content: return json.loads(content)
+        except: pass
     return {}
 
-# 💾 원자적 파일 저장 (쓰다가 서버 꺼져도 파일 깨짐 방지)
 def save_data(filepath, data):
     try:
         temp_filepath = filepath + ".tmp"
         with open(temp_filepath, "w", encoding="utf-8") as f: 
             json.dump(data, f, ensure_ascii=False, indent=4)
         if os.path.exists(temp_filepath) and os.path.getsize(temp_filepath) > 0:
-            if os.path.exists(filepath):
-                os.remove(filepath)
+            if os.path.exists(filepath): os.remove(filepath)
             os.rename(temp_filepath, filepath)
-    except Exception as e:
-        if os.path.exists(temp_filepath):
-            os.remove(temp_filepath)
+    except:
+        if os.path.exists(temp_filepath): os.remove(temp_filepath)
 
 def load_community_safe():
     data = load_data(COMMUNITY_FILE)
@@ -147,13 +159,11 @@ def search_pdf_with_highlight(query, pdf_text):
         return output
     return "🔍 규정집에서 관련 조항을 찾지 못했습니다."
 
-# 앱 실행 시 파일 시스템 로드
 users = load_data(USER_FILE)
 chats = load_data(CHAT_FILE)
 community = load_community_safe()
 pdf_content = load_pdf_text(PDF_FILE)
 
-# 관리자 기본 계정 영구 보존 보장
 if "admin" not in users:
     users["admin"] = {"password": "ahsknue2026_2026!", "name": "최고관리자", "role": "master_admin"}
     save_data(USER_FILE, users)
@@ -164,7 +174,7 @@ if "logged_in" not in st.session_state:
     st.session_state.user_name = None
     st.session_state.role = "user"
 
-# --- 🔐 브라우저 로컬스토리지 자동 로그인 자동 복구 브릿지 ---
+# --- 🔐 로그인 복구 브릿지 ---
 if not st.session_state.logged_in:
     bridge_val = st.text_input("hidden_login_bridge", key="hidden_login_bridge", label_visibility="collapsed")
     st.components.v1.html(
@@ -187,7 +197,6 @@ if not st.session_state.logged_in:
     if bridge_val:
         try:
             u_info = json.loads(bridge_val)
-            # 서버 재시작 후에도 로컬 저장된 유저 데이터가 유효한지 파일에서 재검증
             current_users = load_data(USER_FILE)
             if u_info["id"] in current_users:
                 st.session_state.logged_in = True
@@ -250,7 +259,7 @@ if not st.session_state.logged_in:
 
 else:
     # ----------------------------------------------------
-    # 🖥️ [사이드바 UI 렌더링 - 예외 없이 고정 출력]
+    # 🖥️ [사이드바 UI 렌더링]
     # ----------------------------------------------------
     st.sidebar.markdown(f"### 👤 {st.session_state.user_name}님")
     is_admin_user = (st.session_state.user_id == "admin" or st.session_state.role in ["master_admin", "sub_admin"])
@@ -262,6 +271,31 @@ else:
             st.sidebar.markdown("🛡️ **등급:** `일반 관리자`")
     else:
         st.sidebar.markdown("🎓 **등급:** `일반 학생 사용자`")
+
+    # ⚙️ [실시간 테마/배경 변경 제어기 - 사이드바 배치]
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("### 🎨 실시간 배경 화면 제어")
+    
+    bg_choice = st.sidebar.selectbox(
+        "테마 스타일 선택",
+        ["기본 어두운 테마", "학교 전경", "아늑한 서재", "직접 이미지 URL 입력"],
+        key="bg_theme_selector"
+    )
+    
+    # 선택에 따른 이미지 매핑
+    if bg_choice == "기본 어두운 테마":
+        target_bg = "https://images.unsplash.com/photo-1519681393784-d120267933ba"
+    elif bg_choice == "학교 전경":
+        target_bg = "https://images.unsplash.com/photo-1541339907198-e08756dedf3f" # 학교 느낌 건물 예시
+    elif bg_choice == "아늑한 서재":
+        target_bg = "https://images.unsplash.com/photo-1507842217343-583bb7270b66"
+    else:
+        target_bg = st.sidebar.text_input("🔗 이미지 주소(URL) 입력", value=st.session_state.bg_image)
+
+    # 배경이 바뀌었을 경우 화면 강제 새로고침 리런
+    if target_bg != st.session_state.bg_image:
+        st.session_state.bg_image = target_bg
+        st.rerun()
 
     if st.sidebar.button("로그아웃", use_container_width=True):
         st.session_state.logged_in = False
