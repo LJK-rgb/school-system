@@ -4,9 +4,9 @@ import os
 from datetime import datetime
 import pypdf
 import re
-import base64  # 👈 로컬 이미지를 웹 배경 데이터로 변환하기 위해 추가
+import base64
 
-# --- 📱 [1] 브라우저 레이아웃 강제 고정 설정 ---
+# --- 📱 [1] 브라우저 레이아웃 및 앱 설정 ---
 st.set_page_config(
     page_title="신입생 학교생활 가이드",
     page_icon="https://i.namu.wiki/i/-eAroAg-qXbT2pJ1ZA7PmtbFwbmwAxEwBCc3oLa4UhKh2DixIyG2i6kJw-TrTqEsLkVAOhlGN0nASpm690SRmA.webp",
@@ -14,101 +14,104 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 🔄 [2] 실시간 배경 이미지 및 세부 위치/크기 설정 세션 초기화 ---
+# --- 🔄 [2] 실시간 배경 및 센서 세션 상태 초기화 ---
 if "bg_image" not in st.session_state:
     st.session_state.bg_image = "https://images.unsplash.com/photo-1519681393784-d120267933ba" 
-if "bg_pos_x" not in st.session_state:
-    st.session_state.bg_pos_x = 50
-if "bg_pos_y" not in st.session_state:
-    st.session_state.bg_pos_y = 50
-if "bg_zoom" not in st.session_state:
-    st.session_state.bg_zoom = 100
-if "bg_opacity" not in st.session_state:
-    st.session_state.bg_opacity = 0.85
+if "bg_pos_x" not in st.session_state: st.session_state.bg_pos_x = 50
+if "bg_pos_y" not in st.session_state: st.session_state.bg_pos_y = 50
+if "bg_zoom" not in st.session_state: st.session_state.bg_zoom = 100
+if "bg_opacity" not in st.session_state: st.session_state.bg_opacity = 0.85
 
-# --- 🎨 [3] 동적 배경 반영 및 상단 검은 창 제거 CSS ---
-st.markdown(
-    f"""
-    <style>
-        /* 🚫 상단 스트림릿 기본 검은색 헤더 및 메뉴 바 완전히 숨기기 */
-        header, [data-testid="stHeader"], .st-emotion-cache-18ni7th, .stAppHeader {{
-            background-color: transparent !important;
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-            height: 0px !important;
-        }}
-        
-        /* 🚫 상단 여백(패딩)을 없애서 사진이 위로 밀착되도록 조정 */
-        .main .block-container {{
-            padding-top: 2rem !important;
-        }}
-        
-        /* 🖼️ 실시간 위치 좌표/확대비율이 조절되는 배경 이미지 설정 */
-        .stApp {{
-            background-image: linear-gradient(rgba(14, 17, 23, {st.session_state.bg_opacity}), rgba(14, 17, 23, {st.session_state.bg_opacity})), url("{st.session_state.bg_image}") !important;
-            background-size: {st.session_state.bg_zoom}% !important;
-            background-position: {st.session_state.bg_pos_x}% {st.session_state.bg_pos_y}% !important;
-            background-repeat: no-repeat !important;
-            background-attachment: fixed !important;
-            padding-bottom: 150px !important;
-        }}
-        
-        /* 글자 섀도우 처리로 배경에 구애받지 않는 가독성 확보 */
-        h1, h2, h3, h4, p, span, label, li {{ 
-            color: #ffffff !important; 
-            text-shadow: 1px 1px 4px rgba(0,0,0,0.85);
-        }}
-        .stMarkdown div p {{ color: #ffffff !important; }}
-        
-        /* 사이드바 스타일 고정 */
-        [data-testid="stSidebar"] {{ 
-            background-color: rgba(30, 41, 59, 0.95) !important; 
-            border-right: 2px solid #1d4ed8 !important;
-            visibility: visible !important;
-            display: block !important;
-        }}
-        
-        [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {{
-            background-color: #0f172a !important; 
-            border: 1px solid #334155 !important;
-            padding: 8px 12px !important; 
-            border-radius: 6px !important; 
-            margin-bottom: 6px !important;
-            color: #ffffff !important;
-        }}
-        
-        .stButton>button {{
-            background-color: #1d4ed8 !important; color: #ffffff !important;
-            border-radius: 6px !important; border: none !important; font-weight: bold !important;
-        }}
-        .stButton>button:hover {{ background-color: #2563eb !important; box-shadow: 0px 0px 8px rgba(37, 99, 235, 0.6); }}
-        input[type="text"], input[type="password"], textarea {{ color: #ffffff !important; background-color: #1f2937 !important; border: 1px solid #4b5563 !important; }}
-        
-        div[data-testid="stTextInput"]:has(input[aria-label="hidden_login_bridge"]) {{
-            display: none !important;
-            visibility: hidden !important;
-            height: 0px !important;
-            position: absolute !important;
-            top: -9999px !important;
-        }}
+if "device_info" not in st.session_state: st.session_state.device_info = "분석 중..."
+if "hardware_detail" not in st.session_state: st.session_state.hardware_detail = "확인 중..."
 
-        footer {{ visibility: hidden !important; display: none !important; }}
-        
-        .log-box {{
-            background-color: #1e293b;
-            border: 1px solid #3b82f6;
-            border-radius: 8px;
-            padding: 15px;
-            margin-top: 10px;
-            max-height: 400px;
-            overflow-y: auto;
-        }}
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+# 하드웨어 제어용 신호 플래그
+if "trigger_vibrate" not in st.session_state: st.session_state.trigger_vibrate = False
+if "trigger_speak" not in st.session_state: st.session_state.trigger_speak = ""
 
+# --- 🎨 [3] 실시간 무조건 반영 배경 렌더링 함수 ---
+def render_live_background():
+    st.markdown(
+        f"""
+        <style>
+            header, [data-testid="stHeader"], .st-emotion-cache-18ni7th, .stAppHeader {{
+                background-color: transparent !important; background: transparent !important; border: none !important; box-shadow: none !important; height: 0px !important;
+            }}
+            .main .block-container {{ padding-top: 2rem !important; }}
+            .stApp {{
+                background-image: linear-gradient(rgba(14, 17, 23, {st.session_state.bg_opacity}), rgba(14, 17, 23, {st.session_state.bg_opacity})), url("{st.session_state.bg_image}") !important;
+                background-size: {st.session_state.bg_zoom}% !important; 
+                background-position: {st.session_state.bg_pos_x}% {st.session_state.bg_pos_y}% !important;
+                background-repeat: no-repeat !important; 
+                background-attachment: fixed !important; 
+                padding-bottom: 150px !important;
+            }}
+            h1, h2, h3, h4, p, span, label, li {{ color: #ffffff !important; text-shadow: 1px 1px 4px rgba(0,0,0,0.85); }}
+            .stMarkdown div p {{ color: #ffffff !important; }}
+            [data-testid="stSidebar"] {{ 
+                background-color: rgba(30, 41, 59, 0.95) !important; 
+                border-right: 2px solid #1d4ed8 !important;
+            }}
+            [data-testid="stSidebar"] .stRadio div[role="radiogroup"] label {{
+                background-color: #0f172a !important; border: 1px solid #334155 !important;
+                padding: 8px 12px !important; border-radius: 6px !important; margin-bottom: 6px !important; color: #ffffff !important;
+            }}
+            .stButton>button {{
+                background-color: #1d4ed8 !important; color: #ffffff !important; border-radius: 6px !important; border: none !important; font-weight: bold !important;
+            }}
+            .stButton>button:hover {{ background-color: #2563eb !important; box-shadow: 0px 0px 8px rgba(37, 99, 235, 0.6); }}
+            input[type="text"], input[type="password"], textarea {{ color: #ffffff !important; background-color: #1f2937 !important; border: 1px solid #4b5563 !important; }}
+            
+            /* 데이터 송수신용 히든 필드 완전 은닉 */
+            div[data-testid="stTextInput"]:has(input[aria-label="hidden_login_bridge"]),
+            div[data-testid="stTextInput"]:has(input[aria-label="hidden_device_bridge"]),
+            div[data-testid="stTextInput"]:has(input[aria-label="hidden_detail_hardware_bridge"]) {{
+                display: none !important; visibility: hidden !important; height: 0px !important; position: absolute !important; top: -9999px !important;
+            }}
+            footer {{ visibility: hidden !important; display: none !important; }}
+            .log-box {{ background-color: #1e293b; border: 1px solid #3b82f6; border-radius: 8px; padding: 15px; margin-top: 10px; max-height: 400px; overflow-y: auto; }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+render_live_background()
+
+# --- 🛠️ [4] 자바스크립트 하드웨어 실제 제어 신호 연동 (진동, TTS, 전체화면) ---
+js_controls = f"""
+<script>
+    // 진동 제어 수행
+    if ({'true' if st.session_state.trigger_vibrate else 'false'}) {{
+        if (navigator.vibrate) {{ navigator.vibrate([200, 100, 200]); }}
+    }}
+    
+    // 오디오 TTS 목소리 제어 수행
+    const speechText = "{st.session_state.trigger_speak}";
+    if (speechText !== "") {{
+        if ('speechSynthesis' in window) {{
+            const utterance = new SpeechSynthesisUtterance(speechText);
+            utterance.lang = 'ko-KR';
+            window.speechSynthesis.speak(utterance);
+        }}
+    }}
+
+    // 전체화면 제어 함수 고정
+    window.toggleFullScreen = function() {{
+        if (!document.fullscreenElement) {{
+            document.documentElement.requestFullscreen().catch(err => {{}});
+        }} else {{
+            document.exitFullscreen();
+        }}
+    }}
+</script>
+"""
+st.components.v1.html(js_controls, height=0)
+
+# 제어 신호 소모 후 초기화
+st.session_state.trigger_vibrate = False
+st.session_state.trigger_speak = ""
+
+# --- 📂 [5] 데이터 파일 관리 백엔드 함수 정의 ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 USER_FILE = os.path.join(BASE_DIR, "users.json")
 CHAT_FILE = os.path.join(BASE_DIR, "chats.json")
@@ -116,6 +119,15 @@ COMMUNITY_FILE = os.path.join(BASE_DIR, "community.json")
 PDF_FILE = os.path.join(BASE_DIR, "2025. 학생생활규정.pdf")
 
 BAD_WORDS = ["바보", "멍청이", "지랄", "존나", "개새끼", "시발", "새끼", "미친"]
+
+def parse_device_info(ua_string):
+    if not ua_string: return "알 수 없는 기기"
+    ua = ua_string.lower()
+    if "android" in ua: return "Android 📱"
+    elif "iphone" in ua or "ipad" in ua: return "iOS 🍏"
+    elif "windows" in ua: return "Windows PC 💻"
+    elif "macintosh" in ua: return "Mac 💻"
+    return "기타 기기"
 
 def check_bad_words(text):
     for word in BAD_WORDS:
@@ -133,14 +145,9 @@ def load_data(filepath):
 
 def save_data(filepath, data):
     try:
-        temp_filepath = filepath + ".tmp"
-        with open(temp_filepath, "w", encoding="utf-8") as f: 
+        with open(filepath, "w", encoding="utf-8") as f: 
             json.dump(data, f, ensure_ascii=False, indent=4)
-        if os.path.exists(temp_filepath) and os.path.getsize(temp_filepath) > 0:
-            if os.path.exists(filepath): os.remove(filepath)
-            os.rename(temp_filepath, filepath)
-    except:
-        if os.path.exists(temp_filepath): os.remove(temp_filepath)
+    except: pass
 
 def load_community_safe():
     data = load_data(COMMUNITY_FILE)
@@ -181,6 +188,7 @@ def search_pdf_with_highlight(query, pdf_text):
         return output
     return "🔍 규정집에서 관련 조항을 찾지 못했습니다."
 
+# 데이터 로드
 users = load_data(USER_FILE)
 chats = load_data(CHAT_FILE)
 community = load_community_safe()
@@ -196,7 +204,55 @@ if "logged_in" not in st.session_state:
     st.session_state.user_name = None
     st.session_state.role = "user"
 
-# --- 🔐 로그인 복구 브릿지 ---
+# --- ⚙️ [6] 자바스크립트 1/2단계 데이터 수집 브릿지 ---
+device_ua = st.text_input("hidden_device_bridge", key="hidden_device_bridge", label_visibility="collapsed")
+st.components.v1.html(
+    """
+    <script>
+        const parentDoc = window.parent.document;
+        const ua = navigator.userAgent;
+        const input = parentDoc.querySelector('input[aria-label="hidden_device_bridge"]');
+        if (input && input.value !== ua) {
+            input.value = ua;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    </script>
+    """, height=0
+)
+if device_ua: st.session_state.device_info = parse_device_info(device_ua)
+
+hardware_json = st.text_input("hidden_detail_hardware_bridge", key="hidden_detail_hardware_bridge", label_visibility="collapsed")
+st.components.v1.html(
+    """
+    <script>
+        const parentDoc = window.parent.document;
+        const input = parentDoc.querySelector('input[aria-label="hidden_detail_hardware_bridge"]');
+        async function getHardwareSpecs() {
+            let batteryInfo = "지원 안 함";
+            try {
+                if (navigator.getBattery) {
+                    const battery = await navigator.getBattery();
+                    batteryInfo = `${Math.round(battery.level * 100)}% (${battery.charging ? '⚡충전중' : '🔋배터리'})`;
+                }
+            } catch(e) {}
+            const specData = { "battery": batteryInfo, "network": navigator.onLine ? "🌐 온라인" : "❌ 오프라인" };
+            const strData = JSON.stringify(specData);
+            if (input && input.value !== strData) {
+                input.value = strData;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
+        getHardwareSpecs();
+    </script>
+    """, height=0
+)
+if hardware_json:
+    try:
+        h_data = json.loads(hardware_json)
+        st.session_state.hardware_detail = f"배터리: {h_data.get('battery')} | 네트워크: {h_data.get('network')}"
+    except: pass
+
+# --- 🔐 로그인 자동 복구 브릿지 ---
 if not st.session_state.logged_in:
     bridge_val = st.text_input("hidden_login_bridge", key="hidden_login_bridge", label_visibility="collapsed")
     st.components.v1.html(
@@ -209,25 +265,23 @@ if not st.session_state.logged_in:
                 if (input && input.value !== saved) {
                     input.value = saved;
                     input.dispatchEvent(new Event('input', { bubbles: true }));
-                    input.dispatchEvent(new Event('change', { bubbles: true }));
                 }
             }
         </script>
-        """,
-        height=0
+        """, height=0
     )
     if bridge_val:
         try:
             u_info = json.loads(bridge_val)
-            current_users = load_data(USER_FILE)
-            if u_info["id"] in current_users:
+            if u_info["id"] in users:
                 st.session_state.logged_in = True
                 st.session_state.user_id = u_info["id"]
-                st.session_state.user_name = current_users[u_info["id"]]["name"]
-                st.session_state.role = current_users[u_info["id"]].get("role", "user")
+                st.session_state.user_name = users[u_info["id"]]["name"]
+                st.session_state.role = users[u_info["id"]].get("role", "user")
                 st.rerun()
         except: pass
 
+# 메인 타이틀 바 레이아웃
 col_logo, col_title = st.columns([1, 4])
 with col_logo: st.image("https://i.namu.wiki/i/-eAroAg-qXbT2pJ1ZA7PmtbFwbmwAxEwBCc3oLa4UhKh2DixIyG2i6kJw-TrTqEsLkVAOhlGN0nASpm690SRmA.webp", width=110)
 with col_title:
@@ -236,17 +290,15 @@ with col_title:
 
 st.markdown("---")
 
+# 로그인 페이지 분기 분경
 if not st.session_state.logged_in:
     st.info("👋 안녕하세요! 서비스를 이용하시려면 로그인이나 회원가입을 진행해 주세요.")
     auth_tab1, auth_tab2 = st.tabs(["🔑 로그인", "📝 회원가입"])
 
     with auth_tab1:
-        st.subheader("로그인")
         u_id_input = st.text_input("학번 / 아이디", key="login_id_main")
         u_pw_input = st.text_input("비밀번호", type="password", key="login_pw_main")
-
         if st.button("로그인하기", use_container_width=True):
-            users = load_data(USER_FILE)
             if u_id_input in users and users[u_id_input]["password"] == u_pw_input:
                 st.session_state.logged_in = True
                 st.session_state.user_id = u_id_input
@@ -254,45 +306,31 @@ if not st.session_state.logged_in:
                 st.session_state.role = "master_admin" if u_id_input == "admin" else users[u_id_input].get("role", "user")
                 
                 sess_str = json.dumps({"id": st.session_state.user_id, "name": st.session_state.user_name, "role": st.session_state.role}, ensure_ascii=False)
-                st.components.v1.html(f"""
-                    <script>
-                        localStorage.setItem("saved_user_info", JSON.stringify({sess_str}));
-                    </script>
-                """, height=0)
-                st.success(f"🎉 {st.session_state.user_name}님 로그인 성공!")
+                st.components.v1.html(f"<script>localStorage.setItem('saved_user_info', JSON.stringify({sess_str}));</script>", height=0)
                 st.rerun()
-            else:
-                st.error("아이디 또는 비밀번호가 올바르지 않습니다.")
+            else: st.error("계정 정보가 올바르지 않습니다.")
 
     with auth_tab2:
-        st.subheader("회원가입")
         new_id = st.text_input("학번 (숫자만)", key="join_id_main")
         new_name = st.text_input("이름 (한글 3~4자)", key="join_name_main")
         new_pw = st.text_input("비밀번호", type="password", key="join_pw_main")
         if st.button("가입하기", use_container_width=True):
             if new_id and new_name and new_pw:
-                users = load_data(USER_FILE)
-                if new_id in users:
-                    st.error(" 이미 존재하는 학번/아이디입니다.")
+                if new_id in users: st.error("이미 존재하는 학번입니다.")
                 else:
                     users[new_id] = {"password": new_pw, "name": new_name, "role": "user"}
                     save_data(USER_FILE, users)
-                    st.success("🎉 회원가입 성공! 로그인 탭으로 이동해 주세요.")
+                    st.success("회원가입 완료! 로그인해 주세요.")
 
 else:
-    # ----------------------------------------------------
-    # 🖥️ [사이드바 메뉴 렌더링]
-    # ----------------------------------------------------
+    # --- 사이드바 대시보드 ---
     st.sidebar.markdown(f"### 👤 {st.session_state.user_name}님")
     is_admin_user = (st.session_state.user_id == "admin" or st.session_state.role in ["master_admin", "sub_admin"])
+    st.sidebar.markdown(f"👑 **등급:** `관리자`" if is_admin_user else "🎓 **등급:** `일반 학생`")
     
-    if is_admin_user:
-        if st.session_state.user_id == "admin" or st.session_state.role == "master_admin":
-            st.sidebar.markdown("👑 **등급:** `최고 관리자`")
-        else:
-            st.sidebar.markdown("🛡️ **등급:** `일반 관리자`")
-    else:
-        st.sidebar.markdown("🎓 **등급:** `일반 학생 사용자`")
+    # 상단 기기 연결 정보 노출
+    st.sidebar.markdown(f"🌐 **기기:** `{st.session_state.device_info}`")
+    st.sidebar.markdown(f"🔋 **상태:** `{st.session_state.hardware_detail}`")
 
     if st.sidebar.button("로그아웃", use_container_width=True):
         st.session_state.logged_in = False
@@ -302,351 +340,144 @@ else:
     st.sidebar.markdown("---")
     
     if is_admin_user:
-        st.sidebar.markdown("### 🛠️ 관리자 대시보드")
-        admin_menu = ["🏠 가이드 메인 홈", "🎨 배경 화면 설정실", "🔍 전체 계정 관리", "📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 통계 및 로그"]
-        if st.session_state.user_id == "admin" or st.session_state.role == "master_admin":
-            admin_menu.append("➕ 일반 관리자 계정 생성")
-        menu_choice = st.sidebar.radio("제어할 기능을 선택하세요", admin_menu, key="admin_menu_select_final")
+        admin_menu = ["🏠 가이드 메인 홈", "🎨 실시간 배경 설정실", "🔍 전체 계정 관리", "📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 통계 및 로그"]
+        menu_choice = st.sidebar.radio("제어판 선택", admin_menu, key="adm_sel")
     else:
-        st.sidebar.markdown("### 🧭 새내기 네비게이션")
-        student_menu = ["🏠 가이드 메인 홈", "🎨 배경 화면 설정실"]
-        menu_choice = st.sidebar.radio("메뉴 바로가기", student_menu, key="student_menu_select_final")
+        menu_choice = st.sidebar.radio("네비게이션", ["🏠 가이드 메인 홈", "🎨 실시간 배경 설정실"], key="std_sel")
 
-    # ==================== [[ 🎨 배경 화면 설정실 (파일 직접 업로드 기능 탑재) ]] ====================
-    if menu_choice == "🎨 배경 화면 설정실":
-        st.subheader("🎨 나만의 배경 화면 커스텀 실험실")
-        st.write("내 컴퓨터나 폰에 있는 이미지를 업로드하고 방향키로 위치를 가다듬어 보세요.")
+    # ==================== [[ 🎨 실시간 배경 설정실 분기 ]] ====================
+    if menu_choice == "🎨 실시간 배경 설정실":
+        st.subheader("🎨 실시간 배경화면 대시보드")
+        st.write("슬라이더나 파일을 수정하면 별도의 버튼을 누르지 않아도 화면에 즉시 적용됩니다.")
         st.write("---")
-        
         col_bg1, col_bg2 = st.columns([1, 1])
         
         with col_bg1:
-            st.write("#### 1️⃣ 이미지 직접 파일 업로드")
-            # 📂 [핵심 기능] 컴퓨터의 로컬 이미지 파일을 올릴 수 있는 업로더 설치
-            uploaded_file = st.file_uploader(
-                "배경으로 쓸 내 사진 파일 선택 (png, jpg, jpeg)", 
-                type=["png", "jpg", "jpeg"],
-                key="bg_file_uploader_v4"
-            )
-            
-            # 업로드된 파일이 있으면 base64 형태로 변환하여 배경 변수에 실시간 임시 보관
+            uploaded_file = st.file_uploader("이미지 업로드 (png, jpg)", type=["png", "jpg", "jpeg"], key="rt_up")
             if uploaded_file is not None:
                 file_bytes = uploaded_file.read()
-                # 파일 확장자 추출
                 file_ext = uploaded_file.name.split('.')[-1].lower()
-                if file_ext == "png": mime_type = "image/png"
-                else: mime_type = "image/jpeg"
+                mime = "image/png" if file_ext == "png" else "image/jpeg"
+                st.session_state.bg_image = f"data:{mime};base64,{base64_str = base64.b64encode(file_bytes).decode('utf-8')}"
                 
-                base64_str = base64.b64encode(file_bytes).decode("utf-8")
-                chosen_url = f"data:{mime_type};base64,{base64_str}"
-            else:
-                chosen_url = st.session_state.bg_image  # 업로드 안 했을 때는 기존 이미지 유지
-            
-            st.write("---")
-            st.write("#### 🔍 이미지 배율 및 밝기 설정")
-            chosen_zoom = st.slider("🔍 사진 크기 확대/축소 비율 (%)", 30, 300, int(st.session_state.bg_zoom), step=5)
-            darkness_level = st.slider("🌙 배경 어둡기 필터 레벨 (글자 가독성용)", 0.0, 1.0, float(st.session_state.bg_opacity), step=0.05)
-                
+            st.session_state.bg_zoom = st.slider("🔍 확대/축소 (%)", 30, 300, int(st.session_state.bg_zoom), step=5)
+            st.session_state.bg_opacity = st.slider("🌙 배경 불투명도 가독성 필터", 0.0, 1.0, float(st.session_state.bg_opacity), step=0.05)
+        
         with col_bg2:
-            st.write("#### 2️⃣ 🕹️ 방향키 위치 미세 조정 패드")
-            st.write(f"현재 좌표 위치: `X축(좌우): {st.session_state.bg_pos_x}%` | `Y축(상하): {st.session_state.bg_pos_y}%`")
-            
-            btn_col1, btn_col2, btn_col3 = st.columns([1, 1, 1])
-            
-            with btn_col2:
-                if st.button("▲ 위로", use_container_width=True):
-                    st.session_state.bg_pos_y = max(0, st.session_state.bg_pos_y - 5)
-                    st.rerun()
-            
-            btn_col_l, btn_col_c, btn_col_r = st.columns([1, 1, 1])
-            with btn_col_l:
-                if st.button("◀ 왼쪽", use_container_width=True):
-                    st.session_state.bg_pos_x = max(0, st.session_state.bg_pos_x - 5)
-                    st.rerun()
-            with btn_col_c:
-                if st.button("🎯 중앙", use_container_width=True):
-                    st.session_state.bg_pos_x = 50
-                    st.session_state.bg_pos_y = 50
-                    st.rerun()
-            with btn_col_r:
-                if st.button("오른쪽 ▶", use_container_width=True):
-                    st.session_state.bg_pos_x = min(100, st.session_state.bg_pos_x + 5)
-                    st.rerun()
-                    
-            with btn_col2:
-                if st.button("▼ 아래", use_container_width=True):
-                    st.session_state.bg_pos_y = min(100, st.session_state.bg_pos_y + 5)
-                    st.rerun()
+            st.write(f"위치 매핑 -> X: `{st.session_state.bg_pos_x}%` | Y: `{st.session_state.bg_pos_y}%`")
+            bc1, bc2, bc3 = st.columns([1, 1, 1])
+            with bc2:
+                if st.button("▲ 위로"): st.session_state.bg_pos_y = max(0, st.session_state.bg_pos_y - 10); st.rerun()
+            bl, bc, br = st.columns([1, 1, 1])
+            with bl:
+                if st.button("◀ 왼쪽"): st.session_state.bg_pos_x = max(0, st.session_state.bg_pos_x - 10); st.rerun()
+            with bc:
+                if st.button("🎯 중앙"): st.session_state.bg_pos_x = 50; st.session_state.bg_pos_y = 50; st.rerun()
+            with br:
+                if st.button("오른쪽 ▶"): st.session_state.bg_pos_x = min(100, st.session_state.bg_pos_x + 10); st.rerun()
+            with bc2:
+                if st.button("▼ 아래"): st.session_state.bg_pos_y = min(100, st.session_state.bg_pos_y + 10); st.rerun()
 
-        st.write("---")
-        if st.button("✨ 업로드한 사진과 설정을 최종 적용하기", use_container_width=True):
-            st.session_state.bg_image = chosen_url
-            st.session_state.bg_zoom = chosen_zoom
-            st.session_state.bg_opacity = darkness_level
-            st.success("배경 스타일 개조가 성공적으로 저장되었습니다!")
-            st.rerun()
+        # 즉시 강제 갱신 바인딩
+        render_live_background()
 
-    # ==================== [[ 🛠️ 1. 관리자 전용 제어판 분기 ]] ====================
+    # ==================== [[ 🛠️ 관리자 대시보드 기능 분기 ]] ====================
     elif is_admin_user and menu_choice != "🏠 가이드 메인 홈":
-        def admin_dashboard(choice):
-            current_users = load_data(USER_FILE)
-            current_chats = load_data(CHAT_FILE)
-            current_community = load_community_safe()
-            
-            st.subheader(f"⚙️ 관리 제어판 -> {choice}")
-            
-            if choice == "🔍 전체 계정 관리":
-                search_uid = st.text_input("🔍 학번 또는 관리자 ID 검색")
-                target_users = {k: v for k, v in current_users.items() if v.get("role") != "master_admin"}
-                if search_uid in current_users: target_users = {search_uid: current_users[search_uid]}
-                
-                for u_id, u_info in target_users.items():
-                    with st.expander(f"학번/ID: {u_id} | 이름: {u_info['name']}"):
-                        edit_name = st.text_input("이름 변경", value=u_info['name'], key=f"a_n_{u_id}")
-                        edit_pw = st.text_input("비밀번호 변경", value=u_info['password'], key=f"a_p_{u_id}")
-                        if st.button("💾 수정 저장", key=f"b_s_{u_id}"):
-                            current_users[u_id].update({"name": edit_name, "password": edit_pw})
-                            save_data(USER_FILE, current_users)
-                            st.success("수정 완료!")
+        st.subheader(f"⚙️ 관리 제어판 -> {menu_choice}")
+        
+        if menu_choice == "🔍 전체 계정 관리":
+            search_uid = st.text_input("학번 검색")
+            t_users = {search_uid: users[search_uid]} if search_uid in users else users
+            for u_id, u_info in t_users.items():
+                if u_id == "admin": continue
+                with st.expander(f"👤 {u_info['name']} ({u_id})"):
+                    en = st.text_input("이름 변경", value=u_info['name'], key=f"e_n_{u_id}")
+                    ep = st.text_input("비번 변경", value=u_info['password'], key=f"e_p_{u_id}")
+                    if st.button("수정 저장", key=f"s_b_{u_id}"):
+                        users[u_id].update({"name": en, "password": ep})
+                        save_data(USER_FILE, users)
+                        st.success("수정 완료!")
 
-            elif choice == "📢 공지 및 투표 관리":
-                new_notice = st.text_area("공지사항 수정", value=current_community.get("notice", ""))
-                col_n1, col_n2 = st.columns(2)
-                with col_n1:
-                    if st.button("📢 공지 업데이트", use_container_width=True):
-                        current_community["notice"] = new_notice
-                        save_data(COMMUNITY_FILE, current_community)
-                        st.success("업데이트 완료!")
-                with col_n2:
-                    if st.button("🗑️ 공지사항 초기화", use_container_width=True):
-                        current_community["notice"] = "아직 등록된 공지사항이 없습니다."
-                        save_data(COMMUNITY_FILE, current_community)
+        elif menu_choice == "📢 공지 및 투표 관리":
+            new_notice = st.text_area("공지 수정", value=community.get("notice", ""))
+            if st.button("📢 공지 업데이트", use_container_width=True):
+                community["notice"] = new_notice
+                save_data(COMMUNITY_FILE, community)
+                st.success("반영 완료!")
+
+        elif menu_choice == "🏛️ 커뮤니티 게시글 관리":
+            for idx, post in enumerate(community.get("posts", [])):
+                with st.expander(f"✍️ [{post.get('author')}] {post.get('content')[:15]}..."):
+                    if st.button("🗑️ 삭제", key=f"d_p_{idx}"):
+                        community["posts"].pop(idx)
+                        save_data(COMMUNITY_FILE, community)
                         st.rerun()
-                
-                st.write("---")
-                st.write("#### 🗳️ 신규 투표 발의 및 삭제")
-                poll_title = st.text_input("투표 안건 주제")
-                poll_o1 = st.text_input("보기 1")
-                poll_o2 = st.text_input("보기 2")
-                if st.button("🗳️ 투표 공식 발의") and poll_title and poll_o1 and poll_o2:
-                    current_community["polls"].append({
-                        "title": poll_title, "options": [poll_o1, poll_o2],
-                        "votes": {poll_o1: 0, poll_o2: 0}, "voted_users": [], "is_closed": False
-                    })
-                    save_data(COMMUNITY_FILE, current_community)
-                    st.success("투표 배포 완료!")
-                
-                if current_community.get("polls"):
-                    st.write("---")
-                    st.write("#### 🗑️ 현재 진행 중인 투표 리스트 (삭제 가능)")
-                    for p_idx, poll in enumerate(current_community["polls"]):
-                        col_p1, col_p2 = st.columns([4, 1])
-                        with col_p1: st.caption(f"안건: {poll['title']}")
-                        with col_p2:
-                            if st.button("❌ 삭제", key=f"del_poll_{p_idx}"):
-                                current_community["polls"].pop(p_idx)
-                                save_data(COMMUNITY_FILE, current_community)
-                                st.rerun()
 
-            elif choice == "🏛️ 커뮤니티 게시글 관리":
-                if not current_community.get("posts"):
-                    st.info("현재 커뮤니티에 올라온 게시글이 없습니다.")
-                for idx, post in enumerate(current_community.get("posts", [])):
-                    with st.expander(f"✍️ [{post.get('author', '익명')}] {post.get('content', '')[:20]}..."):
-                        st.write(f"**원문 내용:** {post.get('content', '')}")
-                        
-                        if st.button("🗑️ 게시글 전체 삭제", key=f"a_d_p_{idx}"):
-                            current_community["posts"].pop(idx)
-                            save_data(COMMUNITY_FILE, current_community)
-                            st.rerun()
-                        
-                        st.write("---")
-                        st.caption("💬 이 게시글에 달린 댓글 리스트")
-                        comments = post.get("comments", [])
-                        if not comments:
-                            st.caption("등록된 댓글이 없습니다.")
-                        else:
-                            for c_idx, cmt in enumerate(comments):
-                                col_c1, col_c2 = st.columns([4, 1])
-                                with col_c1:
-                                    st.write(f"↳ **{cmt.get('author','익명')}**: {cmt.get('text','')}")
-                                with col_c2:
-                                    if st.button("❌ 댓글 삭제", key=f"a_d_c_{idx}_{c_idx}"):
-                                        post["comments"].pop(c_idx)
-                                        save_data(COMMUNITY_FILE, current_community)
-                                        st.rerun()
+        elif menu_choice == "💬 학생 질문 통계 및 로그":
+            col_l, col_r = st.columns(2)
+            with col_l:
+                search_uid = st.text_input("조회할 학생 학번")
+            with col_r:
+                st.markdown("#### 📦 하드웨어 상태 복합 적재 로그")
+                log_html = "<div class='log-box'>"
+                if search_uid and search_uid in chats:
+                    for chat in reversed(chats[search_uid]):
+                        hw_tag = f" <br><span style='color:#e11d48; font-size:11px;'>↳ [{chat.get('device', '미상')}] {chat.get('hardware', '데이터 없음')}</span>"
+                        log_html += f"<p style='font-size:13px;'><span style='color:#94a3b8;'>[{chat['time']}]</span> <b>{chat['query']}</b>{hw_tag}</p>"
+                else: log_html += "<p style='color:#94a3b8; font-size:13px;'>학번을 입력하시면 검색 질문 히스토리와 스마트폰 센서 정보가 보입니다.</p>"
+                log_html += "</div>"
+                st.markdown(log_html, unsafe_allow_html=True)
 
-            elif choice == "💬 학생 질문 통계 및 로그":
-                st.write("### 💬 학생 질문 통계 및 로그 검색 제어판")
-                col_left, col_right = st.columns([1, 1])
-                
-                VALID_TARGET_WORDS = [
-                    "휴대폰", "스마트폰", "두발", "복장", "교복", "지각", "조퇴", "결석", 
-                    "벌점", "상점", "포상", "징계", "소지품", "화장", "귀걸이", "피어싱", 
-                    "체육복", "등교", "하교", "전자기기", "태블릿", "노트북", "이성교제", "흡연"
-                ]
-                
-                with col_left:
-                    search_uid = st.text_input("👤 검색할 학생 학번 입력 (미입력 시 전체 통계)", key="admin_search_uid")
-                    st.write("---")
-                    word_counts = {}
-                    
-                    def get_strict_filtered_words(chat_history_list):
-                        counts = {}
-                        for chat in chat_history_list:
-                            query_text = chat['query'].replace(" ", "")
-                            for target_word in VALID_TARGET_WORDS:
-                                if target_word in query_text:
-                                    counts[target_word] = counts.get(target_word, 0) + 1
-                        return counts
-
-                    if search_uid and search_uid in current_chats:
-                        word_counts = get_strict_filtered_words(current_chats[search_uid])
-                        st.markdown(f"📊 **학번 [{search_uid}] 학생의 핵심 규정 키워드 분석 (상위 5개)**")
-                    else:
-                        all_chats = []
-                        for uid, history in current_chats.items():
-                            all_chats.extend(history)
-                        word_counts = get_strict_filtered_words(all_chats)
-                        st.markdown("📊 **전체 학생 실시간 핵심 규정 키워드 분석 (상위 5개)**")
-                    
-                    if word_counts:
-                        sorted_words = sorted(word_counts.items(), key=lambda x: x[1], reverse=True)[:5]
-                        total_top_clicks = sum([x[1] for x in sorted_words])
-                        for word, count in sorted_words:
-                            percentage = (count / total_top_clicks) if total_top_clicks > 0 else 0
-                            st.write(f"🏷️ **{word}** ({count}회)")
-                            st.progress(min(float(percentage), 1.0))
-                    else:
-                        st.info("통계에 반영할 만한 유효한 학교 규정 관련 질문 데이터가 없습니다.")
-
-                with col_right:
-                    st.markdown("#### 📦 학생 개별 로그 출력 박스")
-                    log_html = "<div class='log-box'>"
-                    if search_uid:
-                        if search_uid in current_chats:
-                            student_name = current_users.get(search_uid, {}).get('name', '미등록 유저')
-                            log_html += f"<p style='color:#3b82f6; font-weight:bold;'>👤 {student_name} ({search_uid})의 기록</p><hr style='border:0.5px solid #334155;'> "
-                            for chat in reversed(current_chats[search_uid]):
-                                log_html += f"<p style='font-size:13px; margin-bottom:4px;'><span style='color:#94a3b8;'>[{chat['time']}]</span> {chat['query']}</p>"
-                        else:
-                            log_html += "<p style='color:#ef4444;'>⚠️ 해당 학번의 질문 기록이 존재하지 않습니다.</p>"
-                    else:
-                        log_html += "<p style='color:#94a3b8; font-size:13px;'>상단의 학번 검색창에 학번을 입력하시면 해당 학생의 실시간 질문 히스토리가 이 박스 영역에 표기됩니다.</p>"
-                    log_html += "</div>"
-                    st.markdown(log_html, unsafe_allow_html=True)
-
-            elif choice == "➕ 일반 관리자 계정 생성":
-                sub_id = st.text_input("일반 관리자 ID")
-                sub_name = st.text_input("담당 교사 이름")
-                sub_pw = st.text_input("비밀번호", type="password")
-                if st.button("🛡️ 서브 관리자 추가") and sub_id and sub_name and sub_pw:
-                    current_users[sub_id] = {"password": sub_pw, "name": sub_name, "role": "sub_admin"}
-                    save_data(USER_FILE, current_users)
-                    st.success("관리자 등록 성공!")
-
-        admin_dashboard(menu_choice)
-
-    # ==================== [[ 🎓 2. 학생 및 홈 메인보드 분기 ]] ====================
+    # ==================== [[ 🎓 학생용 메인 홈 분기 ]] ====================
     elif menu_choice == "🏠 가이드 메인 홈":
-        if "search_result" not in st.session_state:
-            st.session_state.search_result = ""
-        if "last_query" not in st.session_state:
-            st.session_state.last_query = ""
+        if "search_result" not in st.session_state: st.session_state.search_result = ""
+        if "last_query" not in st.session_state: st.session_state.last_query = ""
 
-        def student_dashboard():
-            current_community = load_community_safe()
-            current_chats = load_data(CHAT_FILE)
-            
-            st.markdown("### 📢 실시간 학교 공지사항")
-            st.info(current_community.get('notice', '등록된 공지사항이 없습니다.'))
-            
-            tab1, tab2, tab3 = st.tabs(["🤖 규정 질문 챗봇", "🏛️ 학생 소통 커뮤니티", "📊 실시간 투표존"])
+        st.markdown("### 📢 실시간 학교 공지사항")
+        st.info(community.get('notice', '등록된 공지사항이 없습니다.'))
+        
+        tab1, tab2, tab3 = st.tabs(["🤖 규정 질문 챗봇", "🏛️ 학생 소통 공간", "📳 하드웨어 모바일 제어존"])
 
-            with tab1:
-                st.write("### 🤖 학교 생활 규정집 검색기")
-                user_query = st.text_input(
-                    "궁금한 규정 키워드를 입력하세요:", 
-                    value=st.session_state.last_query, 
-                    placeholder="💡 단어로 입력해 주세요! 예: 두발, 휴대폰 (문장X)", 
-                    key="s_query_main"
-                )
+        with tab1:
+            user_query = st.text_input("궁금한 규정 키워드 입력:", value=st.session_state.last_query, placeholder="예: 두발, 휴대폰")
+            if st.button("🔎 검색하기") and user_query:
+                st.session_state.last_query = user_query
+                st.session_state.search_result = search_pdf_with_highlight(user_query, pdf_content)
                 
-                if st.button("🔎 검색하기", key="s_query_btn_main") and user_query:
-                    st.session_state.last_query = user_query
-                    st.session_state.search_result = search_pdf_with_highlight(user_query, pdf_content)
-                    
-                    now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    if st.session_state.user_id not in current_chats:
-                        current_chats[st.session_state.user_id] = []
-                    
-                    current_chats[st.session_state.user_id].append({
-                        "time": now_str,
-                        "query": user_query
-                    })
-                    save_data(CHAT_FILE, current_chats)
-                    st.rerun()
+                if st.session_state.user_id not in chats: chats[st.session_state.user_id] = []
+                chats[st.session_state.user_id].append({
+                    "time": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                    "query": user_query,
+                    "device": st.session_state.device_info,
+                    "hardware": st.session_state.hardware_detail
+                })
+                save_data(CHAT_FILE, chats)
+                st.rerun()
+            if st.session_state.search_result: st.markdown(st.session_state.search_result, unsafe_allow_html=True)
 
-                if st.session_state.search_result:
-                    st.markdown(st.session_state.search_result, unsafe_allow_html=True)
-
-            with tab2:
-                st.write("### 🏛️ 익명/실명 학생 대나무숲")
-                with st.form("s_post_form_main", clear_on_submit=True):
-                    post_content = st.text_area("학교 생활이나 건의사항을 공유해보세요!")
-                    is_anonymous = st.checkbox("익명으로 안전하게 게시")
-                    if st.form_submit_button("게시글 올리기") and post_content:
-                        if check_bad_words(post_content)[0]:
-                            author_name = "익명의 새내기" if is_anonymous else st.session_state.user_name
-                            current_community["posts"].insert(0, {"author": author_name, "content": post_content, "likes": [], "comments": []})
-                            save_data(COMMUNITY_FILE, current_community)
-                            st.rerun()
-
-                st.write("---")
-                for idx, post in enumerate(current_community.get("posts", [])):
-                    st.markdown(f"👤 **{post.get('author', '익명')}**")
-                    st.info(post.get("content", ""))
-                    
-                    likes_list = post.get("likes", [])
-                    if st.button(f"❤️ {len(likes_list)}", key=f"s_l_{idx}_{len(likes_list)}"):
-                        if st.session_state.user_id in likes_list: likes_list.remove(st.session_state.user_id)
-                        else: likes_list.append(st.session_state.user_id)
-                        post["likes"] = likes_list
-                        save_data(COMMUNITY_FILE, current_community)
+        with tab2:
+            with st.form("p_form", clear_on_submit=True):
+                pc = st.text_area("글 쓰기")
+                anon = st.checkbox("익명")
+                if st.form_submit_button("등록") and pc:
+                    if check_bad_words(pc)[0]:
+                        community["posts"].insert(0, {"author": "익명" if anon else st.session_state.user_name, "content": pc, "likes": []})
+                        save_data(COMMUNITY_FILE, community)
                         st.rerun()
+            for idx, post in enumerate(community.get("posts", [])):
+                st.markdown(f"👤 **{post.get('author')}**")
+                st.info(post.get("content", ""))
 
-                    comments_list = post.get("comments", [])
-                    with st.expander(f"💬 댓글 ({len(comments_list)}개)"):
-                        for comment in comments_list: st.write(f"↳ **{comment.get('author','익명')}**: {comment.get('text','')}")
-                        
-                        with st.form(f"s_cmt_form_{idx}", clear_on_submit=True):
-                            cmt_text = st.text_input("댓글 작성란", key=f"s_i_cmt_{idx}")
-                            cmt_anonymous = st.checkbox("익명으로 안전하게 댓글 작성", key=f"s_c_anon_{idx}")
-                            if st.form_submit_button("등록") and cmt_text:
-                                if check_bad_words(cmt_text)[0]:
-                                    author_name = "익명의 새내기" if cmt_anonymous else st.session_state.user_name
-                                    comments_list.append({"author": author_name, "text": cmt_text})
-                                    post["comments"] = comments_list
-                                    save_data(COMMUNITY_FILE, current_community)
-                                    st.rerun()
-
-            with tab3:
-                st.write("### 📊 실시간 학생 투표광장")
-                if not current_community.get("polls"):
-                    st.info("현재 진행 중인 교내 투표가 없습니다.")
-                for p_idx, poll in enumerate(current_community.get("polls", [])):
-                    st.write(f"#### ❓ 주제: {poll.get('title', '무제 투표')}")
-                    voted_users = poll.get("voted_users", [])
-                    if poll.get("is_closed", False) or st.session_state.user_id in voted_users:
-                        st.warning("참여 완료 되었거나 마감된 안건입니다.")
-                        for opt, val in poll.get("votes", {}).items(): st.write(f"✔️ **{opt}** : {val}표")
-                    else:
-                        selected_opt = st.radio("보기를 선택하세요", poll.get("options", []), key=f"s_p_opt_{p_idx}")
-                        if st.button("투표 제출", key=f"s_p_btn_{p_idx}"):
-                            poll["votes"][selected_opt] = poll.get("votes", {}).get(selected_opt, 0) + 1
-                            voted_users.append(st.session_state.user_id)
-                            poll["voted_users"] = voted_users
-                            save_data(COMMUNITY_FILE, current_community)
-                            st.rerun()
-
-        student_dashboard()
+        with tab3:
+            st.write("### 📳 모바일 하드웨어 센서 피드백 요청")
+            st.write("사용자가 직접 버튼을 누르는 이벤트 인터랙션 시 작동하는 기기 제어 기능입니다.")
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("📳 기기 물리 진동 유도", use_container_width=True):
+                    st.session_state.trigger_vibrate = True
+                    st.rerun()
+                if st.button("📢 시스템 스피커 음성 가이드 출력", use_container_width=True):
+                    st.session_state.trigger_speak = "가이드 검색 결과가 준비되었습니다."
+                    st.rerun()
+            with c2:
+                st.components.v1.html('<button onclick="window.parent.toggleFullScreen()" style="width:100%; background-color:#1d4ed8; color:white; border:none; padding:12px; border-radius:6px; font-weight:bold; cursor:pointer;">🖥️ 모바일 전체 화면 On/Off</button>', height=55)
