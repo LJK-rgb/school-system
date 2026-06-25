@@ -29,7 +29,7 @@ if "hardware_detail" not in st.session_state: st.session_state.hardware_detail =
 if "trigger_vibrate" not in st.session_state: st.session_state.trigger_vibrate = False
 if "trigger_speak" not in st.session_state: st.session_state.trigger_speak = ""
 
-# --- 🎨 [3] 실시간 배경 렌더링 함수 (f-string CSS 중괄호 탈출 처리 완료) ---
+# --- 🎨 [3] 실시간 배경 렌더링 함수 ---
 def render_live_background():
     st.markdown(
         f"""
@@ -149,7 +149,13 @@ def load_community_safe():
     data = load_data(COMMUNITY_FILE)
     if not isinstance(data, dict): data = {}
     if "posts" not in data: data["posts"] = []
-    if "polls" not in data: data["polls"] = []
+    if "polls" not in data: 
+        # 초기 기본 투표 데이터 생성
+        data["polls"] = [{
+            "question": "2026학년도 축제 연예인 초청 찬반 투표",
+            "options": ["찬성 (예산 활용 선호)", "반대 (동아리 부스 집중)"],
+            "votes": {}
+        }]
     if "notice" not in data: data["notice"] = "아직 등록된 공지사항이 없습니다."
     return data
 
@@ -199,7 +205,7 @@ if "logged_in" not in st.session_state:
     st.session_state.user_name = None
     st.session_state.role = "user"
 
-# --- ⚙️ [6] 자바스크립트 수집 브릿지 ---
+# --- ⚙️ [6] 자바스크립트 브릿지 파트 ---
 device_ua = st.text_input("hidden_device_bridge", key="hidden_device_bridge", label_visibility="collapsed")
 st.components.v1.html(
     """
@@ -425,7 +431,8 @@ else:
         st.markdown("### 📢 실시간 학교 공지사항")
         st.info(community.get('notice', '등록된 공지사항이 없습니다.'))
         
-        tab1, tab2, tab3 = st.tabs(["🤖 규정 질문 챗봇", "🏛️ 학생 소통 공간", "📳 하드웨어 모바일 제어존"])
+        # 🗳️ 네 개 탭으로 투표존과 모바일 제어존 둘 다 빠짐없이 배치
+        tab1, tab2, tab3, tab4 = st.tabs(["🤖 규정 질문 챗봇", "🏛️ 학생 소통 공간", "📊 실시간 학생 투표", "📳 모바일 제어존"])
 
         with tab1:
             user_query = st.text_input("궁금한 규정 키워드 입력:", value=st.session_state.last_query, placeholder="예: 두발, 휴대폰")
@@ -458,6 +465,46 @@ else:
                 st.info(post.get("content", ""))
 
         with tab3:
+            st.write("### 📊 전교생 실시간 의견 조율 투표")
+            polls = community.get("polls", [])
+            if polls:
+                for p_idx, poll in enumerate(polls):
+                    st.markdown(f"#### 🗳️ {poll['question']}")
+                    
+                    # 현재 투표 상태 계산
+                    votes = poll.get("votes", {})
+                    current_user_vote = votes.get(st.session_state.user_id, None)
+                    
+                    # 결과 스태틱 집계
+                    counts = [0] * len(poll["options"])
+                    for u, v_opt in votes.items():
+                        if v_opt in poll["options"]:
+                            counts[poll["options"].index(v_opt)] += 1
+                    
+                    # 라디오 버튼으로 항목 노출
+                    selected_option = st.radio(
+                        "투표 항목을 선택하세요:", 
+                        poll["options"], 
+                        index=poll["options"].index(current_user_vote) if current_user_vote in poll["options"] else 0,
+                        key=f"poll_opt_{p_idx}"
+                    )
+                    
+                    if st.button("🗳️ 투표 제출 / 변경하기", key=f"poll_btn_{p_idx}"):
+                        votes[st.session_state.user_id] = selected_option
+                        community["polls"][p_idx]["votes"] = votes
+                        save_data(COMMUNITY_FILE, community)
+                        st.success("투표가 정상 반영되었습니다!")
+                        st.rerun()
+                    
+                    # 결과 그래프 시각화
+                    st.write("")
+                    st.write("📊 **현재 실시간 투표 집계 현황**")
+                    for opt, count in zip(poll["options"], counts):
+                        st.write(f"- {opt}: **{count}표**")
+            else:
+                st.write("현재 진행 중인 전교 투표가 없습니다.")
+
+        with tab4:
             st.write("### 📳 모바일 하드웨어 센서 피드백 요청")
             st.write("사용자가 직접 버튼을 누르는 이벤트 인터랙션 시 작동하는 기기 제어 기능입니다.")
             c1, c2 = st.columns(2)
