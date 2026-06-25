@@ -14,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 📂 [2] 데이터 파일 경로 정의 ---
+# --- 📂 [2] 데이터 파일 경로 정의 및 로딩 ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 USER_FILE = os.path.join(BASE_DIR, "users.json")
 CHAT_FILE = os.path.join(BASE_DIR, "chats.json")
@@ -49,7 +49,6 @@ def load_community_safe():
             "votes": {}
         }]
     if "notice" not in data: data["notice"] = "아직 등록된 공지사항이 없습니다."
-    # 💾 서버 영구 저장용 배경화면 설정 키 추가
     if "bg_settings" not in data:
         data["bg_settings"] = {
             "image": "https://images.unsplash.com/photo-1519681393784-d120267933ba",
@@ -60,17 +59,22 @@ def load_community_safe():
         }
     return data
 
-# 파일 데이터 로딩
 users = load_data(USER_FILE)
 chats = load_data(CHAT_FILE)
 community = load_community_safe()
 
-# --- 🔄 [3] 파일 캐시 데이터를 세션 상태로 동기화 (초기화 방지) ---
-if "bg_image" not in st.session_state: st.session_state.bg_image = community["bg_settings"]["image"]
-if "bg_pos_x" not in st.session_state: st.session_state.bg_pos_x = community["bg_settings"]["pos_x"]
-if "bg_pos_y" not in st.session_state: st.session_state.bg_pos_y = community["bg_settings"]["pos_y"]
-if "bg_zoom" not in st.session_state: st.session_state.bg_zoom = community["bg_settings"]["zoom"]
-if "bg_opacity" not in st.session_state: st.session_state.bg_opacity = community["bg_settings"]["opacity"]
+# --- 🔄 [3] 세션 상태 초기화 및 공용 파일 데이터 강제 동기화 ---
+if "logged_in" not in st.session_state: st.session_state.logged_in = False
+if "user_id" not in st.session_state: st.session_state.user_id = None
+if "user_name" not in st.session_state: st.session_state.user_name = None
+if "role" not in st.session_state: st.session_state.role = "user"
+
+# 💡 모든 사용자가 community.json에 저장된 동일한 값을 바라보게 설계 (동기화 핵심)
+st.session_state.bg_image = community["bg_settings"]["image"]
+st.session_state.bg_pos_x = community["bg_settings"]["pos_x"]
+st.session_state.bg_pos_y = community["bg_settings"]["pos_y"]
+st.session_state.bg_zoom = community["bg_settings"]["zoom"]
+st.session_state.bg_opacity = community["bg_settings"]["opacity"]
 
 if "device_info" not in st.session_state: st.session_state.device_info = "분석 중..."
 if "hardware_detail" not in st.session_state: st.session_state.hardware_detail = "확인 중..."
@@ -124,13 +128,95 @@ def render_live_background():
 
 render_live_background()
 
-# --- 🛠️ [5] 자바스크립트 하드웨어 실제 제어 신호 연동 ---
+# --- 🛠 Ori [5] 자바스크립트 브릿지 (로그인 유지력) ---
+bridge_val = st.text_input("hidden_login_bridge", key="hidden_login_bridge", label_visibility="collapsed")
+st.components.v1.html(
+    """
+    <script>
+        const parentDoc = window.parent.document;
+        const saved = localStorage.getItem("saved_user_info");
+        if (saved) {
+            const input = parentDoc.querySelector('input[aria-label="hidden_login_bridge"]');
+            if (input && input.value !== saved) {
+                input.value = saved;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
+    </script>
+    """, height=0
+)
+
+if not st.session_state.logged_in and bridge_val:
+    try:
+        u_info = json.loads(bridge_val)
+        if u_info["id"] in users:
+            st.session_state.logged_in = True
+            st.session_state.user_id = u_info["id"]
+            st.session_state.user_name = users[u_info["id"]]["name"]
+            st.session_state.role = users[u_info["id"]].get("role", "user")
+            st.rerun()
+    except: pass
+
+device_ua = st.text_input("hidden_device_bridge", key="hidden_device_bridge", label_visibility="collapsed")
+st.components.v1.html(
+    """
+    <script>
+        const parentDoc = window.parent.document;
+        const ua = navigator.userAgent;
+        const input = parentDoc.querySelector('input[aria-label="hidden_device_bridge"]');
+        if (input && input.value !== ua) {
+            input.value = ua;
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+    </script>
+    """, height=0
+)
+def parse_device_info(ua_string):
+    if not ua_string: return "알 수 없는 기기"
+    ua = ua_string.lower()
+    if "android" in ua: return "Android 📱"
+    elif "iphone" in ua or "ipad" in ua: return "iOS 🍏"
+    elif "windows" in ua: return "Windows PC 💻"
+    elif "macintosh" in ua: return "Mac 💻"
+    return "기타 기기"
+if device_ua: st.session_state.device_info = parse_device_info(device_ua)
+
+hardware_json = st.text_input("hidden_detail_hardware_bridge", key="hidden_detail_hardware_bridge", label_visibility="collapsed")
+st.components.v1.html(
+    """
+    <script>
+        const parentDoc = window.parent.document;
+        const input = parentDoc.querySelector('input[aria-label="hidden_detail_hardware_bridge"]');
+        async function getHardwareSpecs() {
+            let batteryInfo = "지원 안 함";
+            try {
+                if (navigator.getBattery) {
+                    const battery = await navigator.getBattery();
+                    batteryInfo = `${Math.round(battery.level * 100)}% (${battery.charging ? '⚡충전중' : '🔋배터리'})`;
+                }
+            } catch(e) {}
+            const specData = { "battery": batteryInfo, "network": navigator.onLine ? "🌐 온라인" : "❌ 오프라인" };
+            const strData = JSON.stringify(specData);
+            if (input && input.value !== strData) {
+                input.value = strData;
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
+        getHardwareSpecs();
+    </script>
+    """, height=0
+)
+if hardware_json:
+    try:
+        h_data = json.loads(hardware_json)
+        st.session_state.hardware_detail = f"배터리: {h_data.get('battery')} | 네트워크: {h_data.get('network')}"
+    except: pass
+
 js_controls = f"""
 <script>
     if ({'true' if st.session_state.trigger_vibrate else 'false'}) {{
         if (navigator.vibrate) {{ navigator.vibrate([200, 100, 200]); }}
     }}
-    
     const speechText = "{st.session_state.trigger_speak}";
     if (speechText !== "") {{
         if ('speechSynthesis' in window) {{
@@ -139,22 +225,17 @@ js_controls = f"""
             window.speechSynthesis.speak(utterance);
         }}
     }}
-
     window.toggleFullScreen = function() {{
-        if (!document.fullscreenElement) {{
-            document.documentElement.requestFullscreen().catch(err => {{}});
-        }} else {{
-            document.exitFullscreen();
-        }}
+        if (!document.fullscreenElement) {{ document.documentElement.requestFullscreen().catch(err => {{}}); }}
+        else {{ document.exitFullscreen(); }}
     }}
 </script>
 """
 st.components.v1.html(js_controls, height=0)
-
 st.session_state.trigger_vibrate = False
 st.session_state.trigger_speak = ""
 
-# --- 📄 PDF 텍스트 파서 ---
+# --- 📄 [6] PDF 텍스트 파서 및 검색 고도화 완료 ---
 @st.cache_resource
 def load_pdf_text(filepath):
     if not os.path.exists(filepath): return ""
@@ -192,102 +273,12 @@ if "admin" not in users:
     users["admin"] = {"password": "ahsknue2026_2026!", "name": "최고관리자", "role": "master_admin"}
     save_data(USER_FILE, users)
 
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-    st.session_state.user_id = None
-    st.session_state.user_name = None
-    st.session_state.role = "user"
-
-def parse_device_info(ua_string):
-    if not ua_string: return "알 수 없는 기기"
-    ua = ua_string.lower()
-    if "android" in ua: return "Android 📱"
-    elif "iphone" in ua or "ipad" in ua: return "iOS 🍏"
-    elif "windows" in ua: return "Windows PC 💻"
-    elif "macintosh" in ua: return "Mac 💻"
-    return "기타 기기"
-
 def check_bad_words(text):
     for word in BAD_WORDS:
         if word in text: return False, word
     return True, ""
 
-# --- ⚙️ 자바스크립트 기기 수집 브릿지 ---
-device_ua = st.text_input("hidden_device_bridge", key="hidden_device_bridge", label_visibility="collapsed")
-st.components.v1.html(
-    """
-    <script>
-        const parentDoc = window.parent.document;
-        const ua = navigator.userAgent;
-        const input = parentDoc.querySelector('input[aria-label="hidden_device_bridge"]');
-        if (input && input.value !== ua) {
-            input.value = ua;
-            input.dispatchEvent(new Event('input', { bubbles: true }));
-        }
-    </script>
-    """, height=0
-)
-if device_ua: st.session_state.device_info = parse_device_info(device_ua)
-
-hardware_json = st.text_input("hidden_detail_hardware_bridge", key="hidden_detail_hardware_bridge", label_visibility="collapsed")
-st.components.v1.html(
-    """
-    <script>
-        const parentDoc = window.parent.document;
-        const input = parentDoc.querySelector('input[aria-label="hidden_detail_hardware_bridge"]');
-        async function getHardwareSpecs() {
-            let batteryInfo = "지원 안 함";
-            try {
-                if (navigator.getBattery) {
-                    const battery = await navigator.getBattery();
-                    batteryInfo = `${Math.round(battery.level * 100)}% (${battery.charging ? '⚡충전중' : '🔋배터리'})`;
-                }
-            } catch(e) {}
-            const specData = { "battery": batteryInfo, "network": navigator.onLine ? "🌐 온라인" : "❌ 오프라인" };
-            const strData = JSON.stringify(specData);
-            if (input && input.value !== strData) {
-                input.value = strData;
-                input.dispatchEvent(new Event('input', { bubbles: true }));
-            }
-        }
-        getHardwareSpecs();
-    </script>
-    """, height=0
-)
-if hardware_json:
-    try:
-        h_data = json.loads(hardware_json)
-        st.session_state.hardware_detail = f"배터리: {h_data.get('battery')} | 네트워크: {h_data.get('network')}"
-    except: pass
-
-if not st.session_state.logged_in:
-    bridge_val = st.text_input("hidden_login_bridge", key="hidden_login_bridge", label_visibility="collapsed")
-    st.components.v1.html(
-        """
-        <script>
-            const parentDoc = window.parent.document;
-            const saved = localStorage.getItem("saved_user_info");
-            if (saved) {
-                const input = parentDoc.querySelector('input[aria-label="hidden_login_bridge"]');
-                if (input && input.value !== saved) {
-                    input.value = saved;
-                    input.dispatchEvent(new Event('input', { bubbles: true }));
-                }
-            }
-        </script>
-        """, height=0
-    )
-    if bridge_val:
-        try:
-            u_info = json.loads(bridge_val)
-            if u_info["id"] in users:
-                st.session_state.logged_in = True
-                st.session_state.user_id = u_info["id"]
-                st.session_state.user_name = users[u_info["id"]]["name"]
-                st.session_state.role = users[u_info["id"]].get("role", "user")
-                st.rerun()
-        except: pass
-
+# --- 🖥️ 메인 랜더링 인터페이스 ---
 col_logo, col_title = st.columns([1, 4])
 with col_logo: st.image("https://i.namu.wiki/i/-eAroAg-qXbT2pJ1ZA7PmtbFwbmwAxEwBCc3oLa4UhKh2DixIyG2i6kJw-TrTqEsLkVAOhlGN0nASpm690SRmA.webp", width=110)
 with col_title:
@@ -341,16 +332,17 @@ else:
 
     st.sidebar.markdown("---")
     
+    # 🔒 관리자 권한 철통 방어 분기점 (일반 학생에게는 배경 설정 노출 안 됨)
     if is_admin_user:
         admin_menu = ["🏠 가이드 메인 홈", "🎨 실시간 배경 설정실", "🔍 전체 계정 관리", "📢 공지 및 투표 관리", "🏛️ 커뮤니티 게시글 관리", "💬 학생 질문 통계 및 로그"]
         menu_choice = st.sidebar.radio("제어판 선택", admin_menu, key="adm_sel")
     else:
-        menu_choice = st.sidebar.radio("네비게이션", ["🏠 가이드 메인 홈", "🎨 실시간 배경 설정실"], key="std_sel")
+        menu_choice = "🏠 가이드 메인 홈"
 
-    # ==================== [[ 🎨 실시간 배경 설정실 (파일 로컬 캐싱 고정 완료) ]] ====================
-    if menu_choice == "🎨 실시간 배경 설정실":
-        st.subheader("🎨 실시간 배경화면 대시보드")
-        st.write("설정을 변경하는 순간 로컬 DB 파일에 저장되므로, 새로고침해도 풀리지 않습니다.")
+    # ==================== [[ 🎨 실시간 배경 설정실 (오직 관리자 전용) ]] ====================
+    if is_admin_user and menu_choice == "🎨 실시간 배경 설정실":
+        st.subheader("🎨 실시간 배경화면 관리용 대시보드")
+        st.write("여기서 속성을 변경하면 공용 DB 파일에 즉시 영구 저장되어 전교생의 배경화면이 실시간 동기화됩니다.")
         st.write("---")
         col_bg1, col_bg2 = st.columns([1, 1])
         
@@ -361,55 +353,45 @@ else:
                 file_ext = uploaded_file.name.split('.')[-1].lower()
                 mime = "image/png" if file_ext == "png" else "image/jpeg"
                 base64_str = base64.b64encode(file_bytes).decode('utf-8')
-                st.session_state.bg_image = f"data:{mime};base64,{base64_str}"
-                # 💾 변경사항 즉시 영구 저장 파일에 백업
-                community["bg_settings"]["image"] = st.session_state.bg_image
-                save_data(COMMUNITY_FILE, community)
                 
-            # 슬라이더 값 변경 추적 후 보존
+                community["bg_settings"]["image"] = f"data:{mime};base64,{base64_str}"
+                save_data(COMMUNITY_FILE, community)
+                st.rerun()
+                
             new_zoom = st.slider("🔍 확대/축소 (%)", 30, 300, int(st.session_state.bg_zoom), step=5)
             if new_zoom != st.session_state.bg_zoom:
-                st.session_state.bg_zoom = new_zoom
                 community["bg_settings"]["zoom"] = new_zoom
-                save_data(COMMUNITY_FILE, community)
+                save_data(COMMUNITY_FILE, community); st.rerun()
                 
             new_opacity = st.slider("🌙 배경 불투명도 가독성 필터", 0.0, 1.0, float(st.session_state.bg_opacity), step=0.05)
             if new_opacity != st.session_state.bg_opacity:
-                st.session_state.bg_opacity = new_opacity
                 community["bg_settings"]["opacity"] = new_opacity
-                save_data(COMMUNITY_FILE, community)
+                save_data(COMMUNITY_FILE, community); st.rerun()
         
         with col_bg2:
             st.write(f"위치 매핑 -> X: `{st.session_state.bg_pos_x}%` | Y: `{st.session_state.bg_pos_y}%`")
             bc1, bc2, bc3 = st.columns([1, 1, 1])
             with bc2:
                 if st.button("▲ 위로"):
-                    st.session_state.bg_pos_y = max(0, st.session_state.bg_pos_y - 10)
-                    community["bg_settings"]["pos_y"] = st.session_state.bg_pos_y
+                    community["bg_settings"]["pos_y"] = max(0, st.session_state.bg_pos_y - 10)
                     save_data(COMMUNITY_FILE, community); st.rerun()
             bl, bc, br = st.columns([1, 1, 1])
             with bl:
                 if st.button("◀ 왼쪽"):
-                    st.session_state.bg_pos_x = max(0, st.session_state.bg_pos_x - 10)
-                    community["bg_settings"]["pos_x"] = st.session_state.bg_pos_x
+                    community["bg_settings"]["pos_x"] = max(0, st.session_state.bg_pos_x - 10)
                     save_data(COMMUNITY_FILE, community); st.rerun()
             with bc:
                 if st.button("🎯 중앙"):
-                    st.session_state.bg_pos_x = 50; st.session_state.bg_pos_y = 50
                     community["bg_settings"]["pos_x"] = 50; community["bg_settings"]["pos_y"] = 50
                     save_data(COMMUNITY_FILE, community); st.rerun()
             with br:
                 if st.button("오른쪽 ▶"):
-                    st.session_state.bg_pos_x = min(100, st.session_state.bg_pos_x + 10)
-                    community["bg_settings"]["pos_x"] = st.session_state.bg_pos_x
+                    community["bg_settings"]["pos_x"] = min(100, st.session_state.bg_pos_x + 10)
                     save_data(COMMUNITY_FILE, community); st.rerun()
             with bc2:
                 if st.button("▼ 아래"):
-                    st.session_state.bg_pos_y = min(100, st.session_state.bg_pos_y + 10)
-                    community["bg_settings"]["pos_y"] = st.session_state.bg_pos_y
+                    community["bg_settings"]["pos_y"] = min(100, st.session_state.bg_pos_y + 10)
                     save_data(COMMUNITY_FILE, community); st.rerun()
-
-        render_live_background()
 
     # ==================== [[ 🛠️ 관리자 대시보드 ]] ====================
     elif is_admin_user and menu_choice != "🏠 가이드 메인 홈":
@@ -457,7 +439,7 @@ else:
                 log_html += "</div>"
                 st.markdown(log_html, unsafe_allow_html=True)
 
-    # ==================== [[ 🏠 가이드 메인 홈 ]] ====================
+    # ==================== [[ 🏠 가이드 메인 홈 (학생 & 관리자 모두 이용 가능) ]] ====================
     elif menu_choice == "🏠 가이드 메인 홈":
         if "search_result" not in st.session_state: st.session_state.search_result = ""
         if "last_query" not in st.session_state: st.session_state.last_query = ""
