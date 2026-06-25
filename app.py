@@ -14,22 +14,70 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 🔄 [2] 실시간 배경 및 센서 세션 상태 초기화 ---
-if "bg_image" not in st.session_state:
-    st.session_state.bg_image = "https://images.unsplash.com/photo-1519681393784-d120267933ba" 
-if "bg_pos_x" not in st.session_state: st.session_state.bg_pos_x = 50
-if "bg_pos_y" not in st.session_state: st.session_state.bg_pos_y = 50
-if "bg_zoom" not in st.session_state: st.session_state.bg_zoom = 100
-if "bg_opacity" not in st.session_state: st.session_state.bg_opacity = 0.85
+# --- 📂 [2] 데이터 파일 경로 정의 ---
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+USER_FILE = os.path.join(BASE_DIR, "users.json")
+CHAT_FILE = os.path.join(BASE_DIR, "chats.json")
+COMMUNITY_FILE = os.path.join(BASE_DIR, "community.json")
+PDF_FILE = os.path.join(BASE_DIR, "2025. 학생생활규정.pdf")
+
+BAD_WORDS = ["바보", "멍청이", "지랄", "존나", "개새끼", "시발", "새끼", "미친"]
+
+def load_data(filepath):
+    if os.path.exists(filepath):
+        try:
+            with open(filepath, "r", encoding="utf-8") as f:
+                content = f.read().strip()
+                if content: return json.loads(content)
+        except: pass
+    return {}
+
+def save_data(filepath, data):
+    try:
+        with open(filepath, "w", encoding="utf-8") as f: 
+            json.dump(data, f, ensure_ascii=False, indent=4)
+    except: pass
+
+def load_community_safe():
+    data = load_data(COMMUNITY_FILE)
+    if not isinstance(data, dict): data = {}
+    if "posts" not in data: data["posts"] = []
+    if "polls" not in data: 
+        data["polls"] = [{
+            "question": "2026학년도 축제 연예인 초청 찬반 투표",
+            "options": ["찬성 (예산 활용 선호)", "반대 (동아리 부스 집중)"],
+            "votes": {}
+        }]
+    if "notice" not in data: data["notice"] = "아직 등록된 공지사항이 없습니다."
+    # 💾 서버 영구 저장용 배경화면 설정 키 추가
+    if "bg_settings" not in data:
+        data["bg_settings"] = {
+            "image": "https://images.unsplash.com/photo-1519681393784-d120267933ba",
+            "pos_x": 50,
+            "pos_y": 50,
+            "zoom": 100,
+            "opacity": 0.85
+        }
+    return data
+
+# 파일 데이터 로딩
+users = load_data(USER_FILE)
+chats = load_data(CHAT_FILE)
+community = load_community_safe()
+
+# --- 🔄 [3] 파일 캐시 데이터를 세션 상태로 동기화 (초기화 방지) ---
+if "bg_image" not in st.session_state: st.session_state.bg_image = community["bg_settings"]["image"]
+if "bg_pos_x" not in st.session_state: st.session_state.bg_pos_x = community["bg_settings"]["pos_x"]
+if "bg_pos_y" not in st.session_state: st.session_state.bg_pos_y = community["bg_settings"]["pos_y"]
+if "bg_zoom" not in st.session_state: st.session_state.bg_zoom = community["bg_settings"]["zoom"]
+if "bg_opacity" not in st.session_state: st.session_state.bg_opacity = community["bg_settings"]["opacity"]
 
 if "device_info" not in st.session_state: st.session_state.device_info = "분석 중..."
 if "hardware_detail" not in st.session_state: st.session_state.hardware_detail = "확인 중..."
-
-# 하드웨어 제어용 신호 플래그
 if "trigger_vibrate" not in st.session_state: st.session_state.trigger_vibrate = False
 if "trigger_speak" not in st.session_state: st.session_state.trigger_speak = ""
 
-# --- 🎨 [3] 실시간 배경 렌더링 함수 ---
+# --- 🎨 [4] 실시간 배경 렌더링 함수 ---
 def render_live_background():
     st.markdown(
         f"""
@@ -62,7 +110,6 @@ def render_live_background():
             .stButton>button:hover {{ background-color: #2563eb !important; box-shadow: 0px 0px 8px rgba(37, 99, 235, 0.6); }}
             input[type="text"], input[type="password"], textarea {{ color: #ffffff !important; background-color: #1f2937 !important; border: 1px solid #4b5563 !important; }}
             
-            /* 데이터 송수신용 히든 필드 완전 은닉 */
             div[data-testid="stTextInput"]:has(input[aria-label="hidden_login_bridge"]),
             div[data-testid="stTextInput"]:has(input[aria-label="hidden_device_bridge"]),
             div[data-testid="stTextInput"]:has(input[aria-label="hidden_detail_hardware_bridge"]) {{
@@ -77,7 +124,7 @@ def render_live_background():
 
 render_live_background()
 
-# --- 🛠️ [4] 자바스크립트 하드웨어 실제 제어 신호 연동 ---
+# --- 🛠️ [5] 자바스크립트 하드웨어 실제 제어 신호 연동 ---
 js_controls = f"""
 <script>
     if ({'true' if st.session_state.trigger_vibrate else 'false'}) {{
@@ -107,58 +154,7 @@ st.components.v1.html(js_controls, height=0)
 st.session_state.trigger_vibrate = False
 st.session_state.trigger_speak = ""
 
-# --- 📂 [5] 데이터 파일 관리 백엔드 ---
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-USER_FILE = os.path.join(BASE_DIR, "users.json")
-CHAT_FILE = os.path.join(BASE_DIR, "chats.json")
-COMMUNITY_FILE = os.path.join(BASE_DIR, "community.json")
-PDF_FILE = os.path.join(BASE_DIR, "2025. 학생생활규정.pdf")
-
-BAD_WORDS = ["바보", "멍청이", "지랄", "존나", "개새끼", "시발", "새끼", "미친"]
-
-def parse_device_info(ua_string):
-    if not ua_string: return "알 수 없는 기기"
-    ua = ua_string.lower()
-    if "android" in ua: return "Android 📱"
-    elif "iphone" in ua or "ipad" in ua: return "iOS 🍏"
-    elif "windows" in ua: return "Windows PC 💻"
-    elif "macintosh" in ua: return "Mac 💻"
-    return "기타 기기"
-
-def check_bad_words(text):
-    for word in BAD_WORDS:
-        if word in text: return False, word
-    return True, ""
-
-def load_data(filepath):
-    if os.path.exists(filepath):
-        try:
-            with open(filepath, "r", encoding="utf-8") as f:
-                content = f.read().strip()
-                if content: return json.loads(content)
-        except: pass
-    return {}
-
-def save_data(filepath, data):
-    try:
-        with open(filepath, "w", encoding="utf-8") as f: 
-            json.dump(data, f, ensure_ascii=False, indent=4)
-    except: pass
-
-def load_community_safe():
-    data = load_data(COMMUNITY_FILE)
-    if not isinstance(data, dict): data = {}
-    if "posts" not in data: data["posts"] = []
-    if "polls" not in data: 
-        # 초기 기본 투표 데이터 생성
-        data["polls"] = [{
-            "question": "2026학년도 축제 연예인 초청 찬반 투표",
-            "options": ["찬성 (예산 활용 선호)", "반대 (동아리 부스 집중)"],
-            "votes": {}
-        }]
-    if "notice" not in data: data["notice"] = "아직 등록된 공지사항이 없습니다."
-    return data
-
+# --- 📄 PDF 텍스트 파서 ---
 @st.cache_resource
 def load_pdf_text(filepath):
     if not os.path.exists(filepath): return ""
@@ -190,9 +186,6 @@ def search_pdf_with_highlight(query, pdf_text):
         return output
     return "🔍 규정집에서 관련 조항을 찾지 못했습니다."
 
-users = load_data(USER_FILE)
-chats = load_data(CHAT_FILE)
-community = load_community_safe()
 pdf_content = load_pdf_text(PDF_FILE)
 
 if "admin" not in users:
@@ -205,7 +198,21 @@ if "logged_in" not in st.session_state:
     st.session_state.user_name = None
     st.session_state.role = "user"
 
-# --- ⚙️ [6] 자바스크립트 브릿지 파트 ---
+def parse_device_info(ua_string):
+    if not ua_string: return "알 수 없는 기기"
+    ua = ua_string.lower()
+    if "android" in ua: return "Android 📱"
+    elif "iphone" in ua or "ipad" in ua: return "iOS 🍏"
+    elif "windows" in ua: return "Windows PC 💻"
+    elif "macintosh" in ua: return "Mac 💻"
+    return "기타 기기"
+
+def check_bad_words(text):
+    for word in BAD_WORDS:
+        if word in text: return False, word
+    return True, ""
+
+# --- ⚙️ 자바스크립트 기기 수집 브릿지 ---
 device_ua = st.text_input("hidden_device_bridge", key="hidden_device_bridge", label_visibility="collapsed")
 st.components.v1.html(
     """
@@ -340,10 +347,10 @@ else:
     else:
         menu_choice = st.sidebar.radio("네비게이션", ["🏠 가이드 메인 홈", "🎨 실시간 배경 설정실"], key="std_sel")
 
-    # ==================== [[ 🎨 실시간 배경 설정실 분기 ]] ====================
+    # ==================== [[ 🎨 실시간 배경 설정실 (파일 로컬 캐싱 고정 완료) ]] ====================
     if menu_choice == "🎨 실시간 배경 설정실":
         st.subheader("🎨 실시간 배경화면 대시보드")
-        st.write("슬라이더나 파일을 수정하면 별도의 버튼을 누르지 않아도 화면에 즉시 적용됩니다.")
+        st.write("설정을 변경하는 순간 로컬 DB 파일에 저장되므로, 새로고침해도 풀리지 않습니다.")
         st.write("---")
         col_bg1, col_bg2 = st.columns([1, 1])
         
@@ -355,28 +362,56 @@ else:
                 mime = "image/png" if file_ext == "png" else "image/jpeg"
                 base64_str = base64.b64encode(file_bytes).decode('utf-8')
                 st.session_state.bg_image = f"data:{mime};base64,{base64_str}"
+                # 💾 변경사항 즉시 영구 저장 파일에 백업
+                community["bg_settings"]["image"] = st.session_state.bg_image
+                save_data(COMMUNITY_FILE, community)
                 
-            st.session_state.bg_zoom = st.slider("🔍 확대/축소 (%)", 30, 300, int(st.session_state.bg_zoom), step=5)
-            st.session_state.bg_opacity = st.slider("🌙 배경 불투명도 가독성 필터", 0.0, 1.0, float(st.session_state.bg_opacity), step=0.05)
+            # 슬라이더 값 변경 추적 후 보존
+            new_zoom = st.slider("🔍 확대/축소 (%)", 30, 300, int(st.session_state.bg_zoom), step=5)
+            if new_zoom != st.session_state.bg_zoom:
+                st.session_state.bg_zoom = new_zoom
+                community["bg_settings"]["zoom"] = new_zoom
+                save_data(COMMUNITY_FILE, community)
+                
+            new_opacity = st.slider("🌙 배경 불투명도 가독성 필터", 0.0, 1.0, float(st.session_state.bg_opacity), step=0.05)
+            if new_opacity != st.session_state.bg_opacity:
+                st.session_state.bg_opacity = new_opacity
+                community["bg_settings"]["opacity"] = new_opacity
+                save_data(COMMUNITY_FILE, community)
         
         with col_bg2:
             st.write(f"위치 매핑 -> X: `{st.session_state.bg_pos_x}%` | Y: `{st.session_state.bg_pos_y}%`")
             bc1, bc2, bc3 = st.columns([1, 1, 1])
             with bc2:
-                if st.button("▲ 위로"): st.session_state.bg_pos_y = max(0, st.session_state.bg_pos_y - 10); st.rerun()
+                if st.button("▲ 위로"):
+                    st.session_state.bg_pos_y = max(0, st.session_state.bg_pos_y - 10)
+                    community["bg_settings"]["pos_y"] = st.session_state.bg_pos_y
+                    save_data(COMMUNITY_FILE, community); st.rerun()
             bl, bc, br = st.columns([1, 1, 1])
             with bl:
-                if st.button("◀ 왼쪽"): st.session_state.bg_pos_x = max(0, st.session_state.bg_pos_x - 10); st.rerun()
+                if st.button("◀ 왼쪽"):
+                    st.session_state.bg_pos_x = max(0, st.session_state.bg_pos_x - 10)
+                    community["bg_settings"]["pos_x"] = st.session_state.bg_pos_x
+                    save_data(COMMUNITY_FILE, community); st.rerun()
             with bc:
-                if st.button("🎯 중앙"): st.session_state.bg_pos_x = 50; st.session_state.bg_pos_y = 50; st.rerun()
+                if st.button("🎯 중앙"):
+                    st.session_state.bg_pos_x = 50; st.session_state.bg_pos_y = 50
+                    community["bg_settings"]["pos_x"] = 50; community["bg_settings"]["pos_y"] = 50
+                    save_data(COMMUNITY_FILE, community); st.rerun()
             with br:
-                if st.button("오른쪽 ▶"): st.session_state.bg_pos_x = min(100, st.session_state.bg_pos_x + 10); st.rerun()
+                if st.button("오른쪽 ▶"):
+                    st.session_state.bg_pos_x = min(100, st.session_state.bg_pos_x + 10)
+                    community["bg_settings"]["pos_x"] = st.session_state.bg_pos_x
+                    save_data(COMMUNITY_FILE, community); st.rerun()
             with bc2:
-                if st.button("▼ 아래"): st.session_state.bg_pos_y = min(100, st.session_state.bg_pos_y + 10); st.rerun()
+                if st.button("▼ 아래"):
+                    st.session_state.bg_pos_y = min(100, st.session_state.bg_pos_y + 10)
+                    community["bg_settings"]["pos_y"] = st.session_state.bg_pos_y
+                    save_data(COMMUNITY_FILE, community); st.rerun()
 
         render_live_background()
 
-    # ==================== [[ 🛠️ 관리자 대시보드 기능 분기 ]] ====================
+    # ==================== [[ 🛠️ 관리자 대시보드 ]] ====================
     elif is_admin_user and menu_choice != "🏠 가이드 메인 홈":
         st.subheader(f"⚙️ 관리 제어판 -> {menu_choice}")
         
@@ -410,20 +445,19 @@ else:
 
         elif menu_choice == "💬 학생 질문 통계 및 로그":
             col_l, col_r = st.columns(2)
-            with col_l:
-                search_uid = st.text_input("조회할 학생 학번")
+            with col_l: search_uid = st.text_input("조회할 학생 학번")
             with col_r:
-                st.markdown("#### 📦 하드웨어 상태 복합 적재 로그")
+                st.markdown("#### 📦 하드웨어 상태 로그")
                 log_html = "<div class='log-box'>"
                 if search_uid and search_uid in chats:
                     for chat in reversed(chats[search_uid]):
                         hw_tag = f" <br><span style='color:#e11d48; font-size:11px;'>↳ [{chat.get('device', '미상')}] {chat.get('hardware', '데이터 없음')}</span>"
                         log_html += f"<p style='font-size:13px;'><span style='color:#94a3b8;'>[{chat['time']}]</span> <b>{chat['query']}</b>{hw_tag}</p>"
-                else: log_html += "<p style='color:#94a3b8; font-size:13px;'>학번을 입력하시면 검색 질문 히스토리와 스마트폰 센서 정보가 보입니다.</p>"
+                else: log_html += "<p style='color:#94a3b8; font-size:13px;'>학번을 입력하시면 정보가 노출됩니다.</p>"
                 log_html += "</div>"
                 st.markdown(log_html, unsafe_allow_html=True)
 
-    # ==================== [[ 🎓 학생용 메인 홈 분기 ]] ====================
+    # ==================== [[ 🏠 가이드 메인 홈 ]] ====================
     elif menu_choice == "🏠 가이드 메인 홈":
         if "search_result" not in st.session_state: st.session_state.search_result = ""
         if "last_query" not in st.session_state: st.session_state.last_query = ""
@@ -431,7 +465,6 @@ else:
         st.markdown("### 📢 실시간 학교 공지사항")
         st.info(community.get('notice', '등록된 공지사항이 없습니다.'))
         
-        # 🗳️ 네 개 탭으로 투표존과 모바일 제어존 둘 다 빠짐없이 배치
         tab1, tab2, tab3, tab4 = st.tabs(["🤖 규정 질문 챗봇", "🏛️ 학생 소통 공간", "📊 실시간 학생 투표", "📳 모바일 제어존"])
 
         with tab1:
@@ -470,18 +503,13 @@ else:
             if polls:
                 for p_idx, poll in enumerate(polls):
                     st.markdown(f"#### 🗳️ {poll['question']}")
-                    
-                    # 현재 투표 상태 계산
                     votes = poll.get("votes", {})
                     current_user_vote = votes.get(st.session_state.user_id, None)
                     
-                    # 결과 스태틱 집계
                     counts = [0] * len(poll["options"])
                     for u, v_opt in votes.items():
-                        if v_opt in poll["options"]:
-                            counts[poll["options"].index(v_opt)] += 1
+                        if v_opt in poll["options"]: counts[poll["options"].index(v_opt)] += 1
                     
-                    # 라디오 버튼으로 항목 노출
                     selected_option = st.radio(
                         "투표 항목을 선택하세요:", 
                         poll["options"], 
@@ -496,13 +524,10 @@ else:
                         st.success("투표가 정상 반영되었습니다!")
                         st.rerun()
                     
-                    # 결과 그래프 시각화
                     st.write("")
                     st.write("📊 **현재 실시간 투표 집계 현황**")
                     for opt, count in zip(poll["options"], counts):
                         st.write(f"- {opt}: **{count}표**")
-            else:
-                st.write("현재 진행 중인 전교 투표가 없습니다.")
 
         with tab4:
             st.write("### 📳 모바일 하드웨어 센서 피드백 요청")
