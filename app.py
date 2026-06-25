@@ -29,7 +29,7 @@ if "hardware_detail" not in st.session_state: st.session_state.hardware_detail =
 if "trigger_vibrate" not in st.session_state: st.session_state.trigger_vibrate = False
 if "trigger_speak" not in st.session_state: st.session_state.trigger_speak = ""
 
-# --- 🎨 [3] 실시간 무조건 반영 배경 렌더링 함수 ---
+# --- 🎨 [3] 실시간 배경 렌더링 함수 (f-string CSS 중괄호 탈출 처리 완료) ---
 def render_live_background():
     st.markdown(
         f"""
@@ -77,15 +77,13 @@ def render_live_background():
 
 render_live_background()
 
-# --- 🛠️ [4] 자바스크립트 하드웨어 실제 제어 신호 연동 (진동, TTS, 전체화면) ---
+# --- 🛠️ [4] 자바스크립트 하드웨어 실제 제어 신호 연동 ---
 js_controls = f"""
 <script>
-    // 진동 제어 수행
     if ({'true' if st.session_state.trigger_vibrate else 'false'}) {{
         if (navigator.vibrate) {{ navigator.vibrate([200, 100, 200]); }}
     }}
     
-    // 오디오 TTS 목소리 제어 수행
     const speechText = "{st.session_state.trigger_speak}";
     if (speechText !== "") {{
         if ('speechSynthesis' in window) {{
@@ -95,7 +93,6 @@ js_controls = f"""
         }}
     }}
 
-    // 전체화면 제어 함수 고정
     window.toggleFullScreen = function() {{
         if (!document.fullscreenElement) {{
             document.documentElement.requestFullscreen().catch(err => {{}});
@@ -107,11 +104,10 @@ js_controls = f"""
 """
 st.components.v1.html(js_controls, height=0)
 
-# 제어 신호 소모 후 초기화
 st.session_state.trigger_vibrate = False
 st.session_state.trigger_speak = ""
 
-# --- 📂 [5] 데이터 파일 관리 백엔드 함수 정의 ---
+# --- 📂 [5] 데이터 파일 관리 백엔드 ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 USER_FILE = os.path.join(BASE_DIR, "users.json")
 CHAT_FILE = os.path.join(BASE_DIR, "chats.json")
@@ -188,7 +184,6 @@ def search_pdf_with_highlight(query, pdf_text):
         return output
     return "🔍 규정집에서 관련 조항을 찾지 못했습니다."
 
-# 데이터 로드
 users = load_data(USER_FILE)
 chats = load_data(CHAT_FILE)
 community = load_community_safe()
@@ -204,7 +199,7 @@ if "logged_in" not in st.session_state:
     st.session_state.user_name = None
     st.session_state.role = "user"
 
-# --- ⚙️ [6] 자바스크립트 1/2단계 데이터 수집 브릿지 ---
+# --- ⚙️ [6] 자바스크립트 수집 브릿지 ---
 device_ua = st.text_input("hidden_device_bridge", key="hidden_device_bridge", label_visibility="collapsed")
 st.components.v1.html(
     """
@@ -252,7 +247,6 @@ if hardware_json:
         st.session_state.hardware_detail = f"배터리: {h_data.get('battery')} | 네트워크: {h_data.get('network')}"
     except: pass
 
-# --- 🔐 로그인 자동 복구 브릿지 ---
 if not st.session_state.logged_in:
     bridge_val = st.text_input("hidden_login_bridge", key="hidden_login_bridge", label_visibility="collapsed")
     st.components.v1.html(
@@ -281,7 +275,6 @@ if not st.session_state.logged_in:
                 st.rerun()
         except: pass
 
-# 메인 타이틀 바 레이아웃
 col_logo, col_title = st.columns([1, 4])
 with col_logo: st.image("https://i.namu.wiki/i/-eAroAg-qXbT2pJ1ZA7PmtbFwbmwAxEwBCc3oLa4UhKh2DixIyG2i6kJw-TrTqEsLkVAOhlGN0nASpm690SRmA.webp", width=110)
 with col_title:
@@ -290,7 +283,6 @@ with col_title:
 
 st.markdown("---")
 
-# 로그인 페이지 분기 분경
 if not st.session_state.logged_in:
     st.info("👋 안녕하세요! 서비스를 이용하시려면 로그인이나 회원가입을 진행해 주세요.")
     auth_tab1, auth_tab2 = st.tabs(["🔑 로그인", "📝 회원가입"])
@@ -323,12 +315,9 @@ if not st.session_state.logged_in:
                     st.success("회원가입 완료! 로그인해 주세요.")
 
 else:
-    # --- 사이드바 대시보드 ---
     st.sidebar.markdown(f"### 👤 {st.session_state.user_name}님")
     is_admin_user = (st.session_state.user_id == "admin" or st.session_state.role in ["master_admin", "sub_admin"])
     st.sidebar.markdown(f"👑 **등급:** `관리자`" if is_admin_user else "🎓 **등급:** `일반 학생`")
-    
-    # 상단 기기 연결 정보 노출
     st.sidebar.markdown(f"🌐 **기기:** `{st.session_state.device_info}`")
     st.sidebar.markdown(f"🔋 **상태:** `{st.session_state.hardware_detail}`")
 
@@ -358,7 +347,8 @@ else:
                 file_bytes = uploaded_file.read()
                 file_ext = uploaded_file.name.split('.')[-1].lower()
                 mime = "image/png" if file_ext == "png" else "image/jpeg"
-                st.session_state.bg_image = f"data:{mime};base64,{base64_str = base64.b64encode(file_bytes).decode('utf-8')}"
+                base64_str = base64.b64encode(file_bytes).decode('utf-8')
+                st.session_state.bg_image = f"data:{mime};base64,{base64_str}"
                 
             st.session_state.bg_zoom = st.slider("🔍 확대/축소 (%)", 30, 300, int(st.session_state.bg_zoom), step=5)
             st.session_state.bg_opacity = st.slider("🌙 배경 불투명도 가독성 필터", 0.0, 1.0, float(st.session_state.bg_opacity), step=0.05)
@@ -378,7 +368,6 @@ else:
             with bc2:
                 if st.button("▼ 아래"): st.session_state.bg_pos_y = min(100, st.session_state.bg_pos_y + 10); st.rerun()
 
-        # 즉시 강제 갱신 바인딩
         render_live_background()
 
     # ==================== [[ 🛠️ 관리자 대시보드 기능 분기 ]] ====================
