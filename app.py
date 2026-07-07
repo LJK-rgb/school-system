@@ -7,8 +7,8 @@ import re
 
 # --- 📱 [1] 브라우저 레이아웃 및 앱 설정 ---
 st.set_page_config(
-    page_title="교복이 - 학생생활규정 안내 챗봇",
-    page_icon="🤖",
+    page_title="학생생활규정 안내 서비스",
+    page_icon="📜",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -186,12 +186,12 @@ def check_bad_words(text):
 # --- 🖥️ 메인 랜더링 인터페이스 ---
 col_logo, col_title = st.columns([1, 7])
 with col_logo: st.image("https://i.namu.wiki/i/-eAroAg-qXbT2pJ1ZA7PmtbFwbmwAxEwBCc3oLa4UhKh2DixIyG2i6kJw-TrTqEsLkVAOhlGN0nASpm690SRmA.webp", width=80)
-with col_title: st.markdown("<h2 style='margin-top:10px; color:#1e3a8a;'>교복이 — 학생생활규정 안내 챗봇</h2>", unsafe_allow_html=True)
+with col_title: st.markdown("<h2 style='margin-top:10px; color:#1e3a8a;'>학생생활규정 안내 서비스</h2>", unsafe_allow_html=True)
 
 st.markdown("<hr style='margin: 10px 0 25px 0; border-color:#e5e7eb;'>", unsafe_allow_html=True)
 
 if not st.session_state.logged_in:
-    st.info("👋 안녕하세요! 가이드 및 소통망 서비스를 이용하시려면 로그인이나 회원가입을 진행해 주세요.")
+    st.info("👋 안녕하세요! 규정 검색 및 소통망 서비스를 이용하시려면 로그인이나 회원가입을 진행해 주세요.")
     auth_tab1, auth_tab2 = st.tabs(["🔑 로그인", "📝 회원가입"])
 
     with auth_tab1:
@@ -269,7 +269,7 @@ else:
         if "search_result" not in st.session_state: st.session_state.search_result = ""
         if "last_query" not in st.session_state: st.session_state.last_query = ""
 
-        user_query = st.text_input("교복이에게 물어보세요...", value=st.session_state.last_query, placeholder="예: 두발, 휴대폰, 복장")
+        user_query = st.text_input("규정에 대해 궁금한 점을 입력해 주세요...", value=st.session_state.last_query, placeholder="예: 두발, 휴대폰, 복장")
         if st.button("🚀 규정 검색") and user_query:
             st.session_state.last_query = user_query
             st.session_state.search_result = search_pdf_with_highlight(user_query, pdf_content)
