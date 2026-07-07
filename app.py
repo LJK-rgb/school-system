@@ -68,19 +68,48 @@ if "user_name" not in st.session_state: st.session_state.user_name = None
 if "role" not in st.session_state: st.session_state.role = "user"
 if "device_info" not in st.session_state: st.session_state.device_info = "분석 중..."
 
-# --- 🎨 [5] 화이트 스킨 모던 UI 스타일 커스텀 ---
+# --- 🎨 [5] 화이트 스킨 모던 UI 스타일 커스텀 (입력창 및 글씨 가독성 대폭 강화) ---
 st.markdown(
     """
     <style>
-        .stApp { background-color: #f9fafb !important; color: #1f2937 !important; }
+        /* 기본 배경 및 글자색 강제 지정 */
+        .stApp, [data-testid="stAppViewContainer"] { background-color: #ffffff !important; color: #1f2937 !important; }
+        
+        /* 헤더 설정 */
         header, [data-testid="stHeader"] { background-color: #ffffff !important; box-shadow: 0px 1px 3px rgba(0,0,0,0.05) !important; }
         .main .block-container { padding-top: 3rem !important; max-width: 1100px; }
-        [data-testid="stSidebar"] { background-color: #ffffff !important; border-right: 1px solid #e5e7eb !important; }
-        [data-testid="stSidebar"] h3, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span { color: #374151 !important; }
-        .custom-card { background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 15px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
-        .log-box { background-color: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin-top: 10px; max-height: 400px; overflow-y: auto; color: #1f2937; }
+        
+        /* 사이드바 강제 화이트 및 글자색 수정 */
+        [data-testid="stSidebar"], [data-testid="stSidebarNav"] { background-color: #ffffff !important; border-right: 1px solid #e5e7eb !important; }
+        [data-testid="stSidebar"] h3, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label { color: #1f2937 !important; }
+        
+        /* 일반 텍스트 가독성 확보 */
+        p, span, div, label, h1, h2, h3, h4, h5, h6 { color: #1f2937 !important; }
+        
+        /* 🚨 핵심: 모든 입력창(텍스트 인풋, 텍스트 에어리어)을 하얀 배경 + 검은 테두리로 강제 설정 */
+        div[data-testid="stTextInput"] input, div[data-testid="stTextArea"] textarea {
+            background-color: #ffffff !important;
+            color: #1f2937 !important;
+            border: 2px solid #374151 !important; /* 선명한 검은색 계열 테두리 */
+            border-radius: 8px !important;
+            padding: 10px !important;
+        }
+        
+        /* 입력창 포커스(클릭) 되었을 때 효과 */
+        div[data-testid="stTextInput"] input:focus, div[data-testid="stTextArea"] textarea:focus {
+            border-color: #1e3a8a !important;
+            box-shadow: 0 0 0 2px rgba(30, 58, 138, 0.2) !important;
+        }
+
+        /* 카드 및 로그 박스 */
+        .custom-card { background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 15px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05); }
+        .log-box { background-color: #f3f4f6; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin-top: 10px; max-height: 400px; overflow-y: auto; color: #1f2937 !important; }
+        
+        /* 버튼 스타일 */
         .stButton>button { background-color: #1e3a8a !important; color: #ffffff !important; border-radius: 8px !important; border: none !important; font-weight: 500 !important; }
         .stButton>button:hover { background-color: #2563eb !important; }
+        
+        /* 브릿지용 숨김 창 처리 */
         div[data-testid="stTextInput"]:has(input[aria-label="hidden_login_bridge"]),
         div[data-testid="stTextInput"]:has(input[aria-label="hidden_device_bridge"]) { display: none !important; visibility: hidden !important; height: 0px !important; position: absolute !important; }
         footer { visibility: hidden !important; display: none !important; }
