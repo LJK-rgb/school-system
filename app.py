@@ -5,7 +5,7 @@ from datetime import datetime
 import pypdf
 import re
 
-# --- 📱 [1] 브라우저 레이아웃 및 앱 설정 ---
+# --- [1] 브라우저 레이아웃 및 앱 설정 ---
 st.set_page_config(
     page_title="학생생활규정 안내 서비스",
     page_icon="📜",
@@ -13,7 +13,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- 📂 [2] 데이터 파일 경로 정의 ---
+# --- [2] 데이터 파일 경로 정의 ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 STUDENT_USER_FILE = os.path.join(BASE_DIR, "users_student.json")
 ADMIN_USER_FILE = os.path.join(BASE_DIR, "users_admin.json")
@@ -23,7 +23,7 @@ PDF_FILE = os.path.join(BASE_DIR, "2025. 학생생활규정.pdf")
 
 BAD_WORDS = ["바보", "멍청이", "지랄", "존나", "개새끼", "시발", "새끼", "미친"]
 
-# --- 💾 [3] 데이터 로드 및 저장 함수 ---
+# --- [3] 데이터 로드 및 저장 함수 ---
 def load_json_safe(filepath):
     if os.path.exists(filepath):
         try:
@@ -61,14 +61,14 @@ if "admin" not in admins:
     admins["admin"] = {"password": "ahsknue2026_2026!", "name": "최고관리자", "role": "master_admin"}
     save_json_safe(ADMIN_USER_FILE, admins)
 
-# --- 🔄 [4] 세션 상태 초기화 ---
+# --- [4] 세션 상태 초기화 ---
 if "logged_in" not in st.session_state: st.session_state.logged_in = False
 if "user_id" not in st.session_state: st.session_state.user_id = None
 if "user_name" not in st.session_state: st.session_state.user_name = None
 if "role" not in st.session_state: st.session_state.role = "user"
 if "device_info" not in st.session_state: st.session_state.device_info = "분석 중..."
 
-# --- 🎨 [5] 화이트 스킨 모던 UI 스타일 커스텀 ---
+# --- [5] 화이트 스킨 모던 UI 스타일 커스텀 ---
 st.markdown(
     """
     <style>
@@ -143,7 +143,7 @@ st.markdown(
     unsafe_allow_html=True
 )
 
-# --- 🛠️ [6] 로그인 유지를 위한 자바스크립트 브릿지 ---
+# --- [6] 로그인 유지를 위한 자바스크립트 브릿지 ---
 bridge_val = st.text_input("hidden_login_bridge", key="hidden_login_bridge", label_visibility="collapsed")
 st.components.v1.html(
     """
@@ -198,7 +198,7 @@ def parse_device_info(ua_string):
     return "기타 기기"
 if device_ua: st.session_state.device_info = parse_device_info(device_ua)
 
-# --- 📄 [7] PDF 규정집 검색 엔진 ---
+# --- [7] PDF 규정집 검색 엔진 ---
 @st.cache_resource
 def load_pdf_text(filepath):
     if not os.path.exists(filepath): return ""
@@ -237,7 +237,7 @@ def check_bad_words(text):
         if word in text: return False, word
     return True, ""
 
-# --- 🖥️ 메인 랜더링 인터페이스 ---
+# --- 메인 랜더링 인터페이스 ---
 col_logo, col_title = st.columns([1, 7])
 with col_logo: st.image("https://i.namu.wiki/i/-eAroAg-qXbT2pJ1ZA7PmtbFwbmwAxEwBCc3oLa4UhKh2DixIyG2i6kJw-TrTqEsLkVAOhlGN0nASpm690SRmA.webp", width=80)
 with col_title: st.markdown("<h2 style='margin-top:10px; color:#2563eb;'>학생생활규정 안내 서비스</h2>", unsafe_allow_html=True)
@@ -305,7 +305,7 @@ else:
         
     menu_choice = st.sidebar.radio("메뉴 네비게이션", menu_list, key="menu_sel")
 
-    # ==================== [[ 🏠 가이드 홈 & 공지 ]] ====================
+    # ==================== [[ 가이드 홈 & 공지 ]] ====================
     if menu_choice == "🏠 가이드 홈 & 공지":
         st.markdown("<h3 style='color:#2563eb;'>✨ 당당한 사람으로 모두 성장하는 학교</h3>", unsafe_allow_html=True)
         st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
@@ -313,7 +313,7 @@ else:
         st.info(community.get('notice', '등록된 공지사항이 없습니다.'))
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ==================== [[ 🤖 규정 질문 챗봇 ]] ====================
+    # ==================== [[ 규정 질문 챗봇 ]] ====================
     elif menu_choice == "🤖 규정 질문 챗봇":
         st.markdown("### 🤖 학생생활규정 안내 챗봇")
         if "search_result" not in st.session_state: st.session_state.search_result = ""
@@ -329,7 +329,7 @@ else:
             st.rerun()
         if st.session_state.search_result: st.markdown(st.session_state.search_result, unsafe_allow_html=True)
 
-    # ==================== [[ 🏛️ 학생 소통 커뮤니티 ]] ====================
+    # ==================== [[ 학생 소통 커뮤니티 ]] ====================
     elif menu_choice == "🏛️ 학생 소통 커뮤니티":
         st.markdown("### 🏛️ 커뮤니티 소통 공간")
         with st.form("p_form", clear_on_submit=True):
@@ -348,7 +348,7 @@ else:
             st.write(post.get("content", ""))
             st.markdown("</div>", unsafe_allow_html=True)
 
-    # ==================== [[ 📊 실시간 학생 투표 ]] ====================
+    # ==================== [[ 실시간 학생 투표 ]] ====================
     elif menu_choice == "📊 실시간 학생 투표":
         st.markdown("### 📊 실시간 의견 조율 투표")
         polls = community.get("polls", [])
@@ -366,17 +366,17 @@ else:
                     st.rerun()
                 st.markdown("</div>", unsafe_allow_html=True)
 
-    # ==================== [[ 🔗 학교 필수 링크 모음 ]] ====================
+    # ==================== [[ 학교 필수 링크 모음 ]] ====================
     elif menu_choice == "🔗 학교 필수 링크 모음":
         st.markdown("### 🔗 학교 생활 필수 링크 모음")
         st.write("실시간 반별 시간표를 확인하려면 아래의 공식 서비스 링크 단추를 클릭하세요.")
         
         st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
         st.markdown("#### ⏱️ 오늘의 반별 실시간 시간표")
-        st.link_button("🏫 컴시간알리미 바로가기", "https://comcigan.com/", use_container_width=True)
+        st.link_button("🏫 컴시간알리미 바로가기", "http://www.xn--s39aj90b0nb2xw6xh.kr/", use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
-    # ==================== [[ ⚙️ 관리자 메뉴 ]] ====================
+    # ==================== [[ 관리자 메뉴 ]] ====================
     elif is_admin_user:
         st.markdown(f"### ⚙️ 관리 컨트롤러 — {menu_choice}")
         
