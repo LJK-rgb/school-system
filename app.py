@@ -373,7 +373,7 @@ else:
         
         st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
         st.markdown("#### ⏱️ 오늘의 반별 실시간 시간표")
-        st.link_button("🏫 컴시간알리미 바로가기", "http://www.xn--s39aj90b0nb2xw6xh.kr/", use_container_width=True)
+        st.link_button("🏫 컴시간알리미 바로가기", "https://comcigan.com/", use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
     # ==================== [[ ⚙️ 관리자 메뉴 ]] ====================
