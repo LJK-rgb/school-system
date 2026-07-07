@@ -107,26 +107,32 @@ st.markdown(
         .log-box { background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin-top: 10px; max-height: 400px; overflow-y: auto; color: #1f2937 !important; }
         
         button[data-baseweb="tab"] { color: #4b5563 !important; }
-        button[aria-selected="true"] { color: #1e3a8a !important; font-weight: bold !important; }
+        button[aria-selected="true"] { color: #2563eb !important; font-weight: bold !important; }
         
-        /* 🚀 일반 버튼 및 링크 버튼 스타일 일괄 강화 (완전 선명한 화이트 글씨) */
-        .stButton>button, .stDownloadButton>button, .stLinkButton>a { 
-            background-color: #1e3a8a !important; 
+        /* 🔵 [핵심 변경] 어두운 검은색 버튼 탈피 -> 밝고 산뜻한 파란색(#2563eb)으로 강제 변환 */
+        .stButton>button, .stDownloadButton>button, .stLinkButton>a, button[data-testid="baseButton-secondaryFormSubmit"], button[data-testid="baseButton-secondary"] { 
+            background-color: #2563eb !important; 
             color: #ffffff !important; 
             border-radius: 8px !important; 
             border: none !important; 
             font-weight: 600 !important; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
+            box-shadow: 0 2px 5px rgba(37, 99, 235, 0.2) !important;
             text-decoration: none !important;
             display: inline-flex !important;
             align-items: center !important;
             justify-content: center !important;
+            transition: all 0.2s ease !important;
         }
-        .stButton>button p, .stLinkButton>a p, .stLinkButton>a span { 
+        
+        /* 버튼 내부 모든 하위 태그 글씨색을 무조건 흰색으로 강제 처리 */
+        .stButton>button *, .stDownloadButton>button *, .stLinkButton>a *, button[data-testid="baseButton-secondaryFormSubmit"] * { 
             color: #ffffff !important; 
         }
-        .stButton>button:hover, .stLinkButton>a:hover { 
-            background-color: #2563eb !important; 
+        
+        /* 마우스 올렸을 때 살짝 더 밝은 파란색 효과 */
+        .stButton>button:hover, .stLinkButton>a:hover, button[data-testid="baseButton-secondaryFormSubmit"]:hover { 
+            background-color: #3b82f6 !important; 
+            box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3) !important;
         }
         
         div[data-testid="stTextInput"]:has(input[aria-label="hidden_login_bridge"]),
@@ -220,7 +226,7 @@ def search_pdf_with_highlight(query, pdf_text):
             if len(results) >= 3: break
     if results:
         output = "🔍 **규정집 내부 매칭된 조항 검색 결과:**\n\n"
-        for res in results: output += f"<div style='background-color: #ffffff; color: #1f2937; padding: 18px; border-radius: 8px; margin-bottom: 12px; border-left: 5px solid #1e3a8a; box-shadow: 0 1px 3px rgba(0,0,0,0.05); white-space: pre-wrap;'>{res}</div>"
+        for res in results: output += f"<div style='background-color: #ffffff; color: #1f2937; padding: 18px; border-radius: 8px; margin-bottom: 12px; border-left: 5px solid #2563eb; box-shadow: 0 1px 3px rgba(0,0,0,0.05); white-space: pre-wrap;'>{res}</div>"
         return output
     return "🔍 규정집에서 관련 조항을 찾지 못했습니다."
 
@@ -234,7 +240,7 @@ def check_bad_words(text):
 # --- 🖥️ 메인 랜더링 인터페이스 ---
 col_logo, col_title = st.columns([1, 7])
 with col_logo: st.image("https://i.namu.wiki/i/-eAroAg-qXbT2pJ1ZA7PmtbFwbmwAxEwBCc3oLa4UhKh2DixIyG2i6kJw-TrTqEsLkVAOhlGN0nASpm690SRmA.webp", width=80)
-with col_title: st.markdown("<h2 style='margin-top:10px; color:#1e3a8a;'>학생생활규정 안내 서비스</h2>", unsafe_allow_html=True)
+with col_title: st.markdown("<h2 style='margin-top:10px; color:#2563eb;'>학생생활규정 안내 서비스</h2>", unsafe_allow_html=True)
 
 st.markdown("<hr style='margin: 10px 0 25px 0; border-color:#e5e7eb;'>", unsafe_allow_html=True)
 
@@ -301,7 +307,7 @@ else:
 
     # ==================== [[ 🏠 가이드 홈 & 공지 ]] ====================
     if menu_choice == "🏠 가이드 홈 & 공지":
-        st.markdown("<h3 style='color:#1e3a8a;'>✨ 당당한 사람으로 모두 성장하는 학교</h3>", unsafe_allow_html=True)
+        st.markdown("<h3 style='color:#2563eb;'>✨ 당당한 사람으로 모두 성장하는 학교</h3>", unsafe_allow_html=True)
         st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
         st.markdown("#### 📢 실시간 학교 공지사항")
         st.info(community.get('notice', '등록된 공지사항이 없습니다.'))
@@ -329,6 +335,7 @@ else:
         with st.form("p_form", clear_on_submit=True):
             pc = st.text_area("학우들과 나누고 싶은 이야기를 들려주세요.")
             anon = st.checkbox("익명 게시글로 등록하기")
+            # 🔵 이제 커뮤니티 전송 버튼도 완벽한 밝은 파란색 배경에 흰색 글씨로 고정됩니다.
             if st.form_submit_button("📝 게시글 올리기") and pc:
                 if check_bad_words(pc)[0]:
                     community["posts"].insert(0, {"author": "익명" if anon else st.session_state.user_name, "content": pc, "likes": [], "comments": []})
@@ -364,7 +371,6 @@ else:
         st.markdown("### 🔗 학교 생활 필수 링크 모음")
         st.write("실시간 반별 시간표를 확인하려면 아래의 공식 서비스 링크 단추를 클릭하세요.")
         
-        # 🔗 리로스쿨을 완벽히 제거하고 컴시간알리미만 뚜렷하게 남김
         st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
         st.markdown("#### ⏱️ 오늘의 반별 실시간 시간표")
         st.link_button("🏫 컴시간알리미 바로가기", "https://comcigan.com/", use_container_width=True)
