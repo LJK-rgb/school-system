@@ -68,54 +68,58 @@ if "user_name" not in st.session_state: st.session_state.user_name = None
 if "role" not in st.session_state: st.session_state.role = "user"
 if "device_info" not in st.session_state: st.session_state.device_info = "분석 중..."
 
-# --- 🎨 [5] 화이트 스킨 모던 UI 스타일 커스텀 (자연스러운 톤온톤 스타일) ---
+# --- 🎨 [5] 화이트 스킨 모던 UI 스타일 커스텀 ---
 st.markdown(
     """
     <style>
-        /* 메인 배경화면 전체 화이트 처리 */
         .stApp, [data-testid="stAppViewContainer"] { background-color: #f9fafb !important; color: #1f2937 !important; }
-        
-        /* 헤더 배경 자연스럽게 매칭 */
         header, [data-testid="stHeader"], [data-testid="stStatusWidget"] { background-color: #f9fafb !important; box-shadow: none !important; }
         .main .block-container { padding-top: 2rem !important; max-width: 1100px; }
         
-        /* 사이드바 스타일 가볍게 */
         [data-testid="stSidebar"], [data-testid="stSidebarNav"] { background-color: #ffffff !important; border-right: 1px solid #e5e7eb !important; }
         [data-testid="stSidebar"] h3, [data-testid="stSidebar"] p, [data-testid="stSidebar"] span, [data-testid="stSidebar"] label { color: #1f2937 !important; }
         
-        /* 텍스트 기본 컬러 가독성 보장 */
         p, span, div, label, h1, h2, h3, h4, h5, h6 { color: #1f2937 !important; }
         
-        /* 💡 입력창을 배경 색상과 어우러지게 부드러운 회색 테두리 + 하얀 배경으로 변경 */
         div[data-testid="stTextInput"] input, div[data-testid="stTextArea"] textarea {
             background-color: #ffffff !important;
             color: #1f2937 !important;
-            border: 1px solid #d1d5db !important; /* 과하지 않은 부드러운 회색 테두리 */
+            border: 1px solid #d1d5db !important;
             border-radius: 8px !important;
             padding: 10px !important;
             box-shadow: inset 0 1px 2px rgba(0,0,0,0.02) !important;
         }
         
-        /* 입력창에 마우스 올리거나 클릭했을 때 부드러운 파란색 포인트 */
         div[data-testid="stTextInput"] input:focus, div[data-testid="stTextArea"] textarea:focus {
             border-color: #3b82f6 !important;
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
             outline: none !important;
         }
 
-        /* 메인 콘텐츠 카드 */
+        div[data-testid="stTextInput"] button[aria-label="Show password"] svg,
+        div[data-testid="stTextInput"] button[aria-label="Hide password"] svg,
+        div[data-testid="stTextInput"] button svg {
+            fill: #1f2937 !important;
+            color: #1f2937 !important;
+        }
+
         .custom-card { background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 20px; margin-bottom: 15px; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02); }
         .log-box { background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 15px; margin-top: 10px; max-height: 400px; overflow-y: auto; color: #1f2937 !important; }
         
-        /* 탭 버튼 색상 최적화 */
         button[data-baseweb="tab"] { color: #4b5563 !important; }
         button[aria-selected="true"] { color: #1e3a8a !important; font-weight: bold !important; }
         
-        /* 메인 액션 버튼 */
-        .stButton>button { background-color: #1e3a8a !important; color: #ffffff !important; border-radius: 8px !important; border: none !important; font-weight: 500 !important; box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important; }
+        .stButton>button { 
+            background-color: #1e3a8a !important; 
+            color: #ffffff !important; 
+            border-radius: 8px !important; 
+            border: none !important; 
+            font-weight: 600 !important; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important; 
+        }
+        .stButton>button p { color: #ffffff !important; }
         .stButton>button:hover { background-color: #2563eb !important; }
         
-        /* 데이터 수집 차단 및 숨김 필드 */
         div[data-testid="stTextInput"]:has(input[aria-label="hidden_login_bridge"]),
         div[data-testid="stTextInput"]:has(input[aria-label="hidden_device_bridge"]) { display: none !important; visibility: hidden !important; height: 0px !important; position: absolute !important; }
         footer { visibility: hidden !important; display: none !important; }
@@ -252,23 +256,20 @@ if not st.session_state.logged_in:
             else: st.error("계정 정보가 올바르지 않습니다.")
 
     with auth_tab2:
+        # 🔐 보안 패치: 외부 회원가입은 무조건 '일반 학생' 전용으로 고정 (선택창 제거)
+        st.markdown("⚠️ 일반 학생 사용자 가입 전용 공간입니다.")
         new_id = st.text_input("학번 / 아이디 (숫자 위주)", key="join_id_main")
         new_name = st.text_input("이름", key="join_name_main")
         new_pw = st.text_input("비밀번호", type="password", key="join_pw_main")
-        reg_role = st.selectbox("가입 유형", ["일반 학생 사용자", "일반 관리자"])
         
         if st.button("가입하기", use_container_width=True):
             if new_id and new_name and new_pw:
                 if new_id in students or new_id in admins:
                     st.error("이미 존재하는 학번/아이디입니다.")
                 else:
-                    if reg_role == "일반 관리자":
-                        admins[new_id] = {"password": new_pw, "name": new_name, "role": "sub_admin"}
-                        save_json_safe(ADMIN_USER_FILE, admins)
-                    else:
-                        students[new_id] = {"password": new_pw, "name": new_name, "role": "user"}
-                        save_json_safe(STUDENT_USER_FILE, students)
-                    st.success(f"🎉 [{reg_role}] 회원가입 성공! 로그인해 주세요.")
+                    students[new_id] = {"password": new_pw, "name": new_name, "role": "user"}
+                    save_json_safe(STUDENT_USER_FILE, students)
+                    st.success(f"🎉 회원가입 성공! 로그인해 주세요.")
 
 else:
     st.sidebar.markdown(f"### 👤 {st.session_state.user_name}님")
@@ -370,7 +371,7 @@ else:
         st.markdown(f"### ⚙️ 관리 컨트롤러 — {menu_choice}")
         
         if menu_choice == "⚙️ [관리] 전체 계정 관리":
-            tab_std, tab_adm = st.tabs(["🎓 일반 학생 관리", "⚙️ 일반 관리자 관리"])
+            tab_std, tab_adm, tab_create_adm = st.tabs(["🎓 일반 학생 관리", "⚙️ 일반 관리자 관리", "➕ 관리자 신규 발급"])
             
             with tab_std:
                 for u_id, u_info in list(students.items()):
@@ -393,6 +394,22 @@ else:
                             admins[u_id].update({"name": en, "password": ep})
                             save_json_safe(ADMIN_USER_FILE, admins)
                             st.success("관리자 정보 수정 완료!")
+                            st.rerun()
+                            
+            # 🔐 보안 패치: 최고관리자만 수동으로 일반 관리자를 생성해 줄 수 있는 탭
+            with tab_create_adm:
+                st.markdown("#### ➕ 신규 일반 관리자 생성")
+                cadm_id = st.text_input("관리자용 아이디 ID", key="c_adm_id")
+                cadm_name = st.text_input("관리자 이름", key="c_adm_name")
+                cadm_pw = st.text_input("초기 비밀번호", type="password", key="c_adm_pw")
+                if st.button("👑 관리자 권한 계정 생성하기", use_container_width=True):
+                    if cadm_id and cadm_name and cadm_pw:
+                        if cadm_id in admins or cadm_id in students:
+                            st.error("이미 존재하는 아이디입니다.")
+                        else:
+                            admins[cadm_id] = {"password": cadm_pw, "name": cadm_name, "role": "sub_admin"}
+                            save_json_safe(ADMIN_USER_FILE, admins)
+                            st.success(f"🎉 [{cadm_name}] 교사/일반관리자 계정이 발급되었습니다.")
                             st.rerun()
 
         elif menu_choice == "⚙️ [관리] 메인 공지/투표 관리":
