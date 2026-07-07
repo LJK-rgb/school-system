@@ -109,16 +109,25 @@ st.markdown(
         button[data-baseweb="tab"] { color: #4b5563 !important; }
         button[aria-selected="true"] { color: #1e3a8a !important; font-weight: bold !important; }
         
-        .stButton>button { 
+        /* 🚀 일반 버튼 및 링크 버튼 스타일 일괄 강화 (완전 선명한 화이트 글씨) */
+        .stButton>button, .stDownloadButton>button, .stLinkButton>a { 
             background-color: #1e3a8a !important; 
             color: #ffffff !important; 
             border-radius: 8px !important; 
             border: none !important; 
             font-weight: 600 !important; 
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05) !important;
+            text-decoration: none !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
         }
-        .stButton>button p { color: #ffffff !important; }
-        .stButton>button:hover { background-color: #2563eb !important; }
+        .stButton>button p, .stLinkButton>a p, .stLinkButton>a span { 
+            color: #ffffff !important; 
+        }
+        .stButton>button:hover, .stLinkButton>a:hover { 
+            background-color: #2563eb !important; 
+        }
         
         div[data-testid="stTextInput"]:has(input[aria-label="hidden_login_bridge"]),
         div[data-testid="stTextInput"]:has(input[aria-label="hidden_device_bridge"]) { display: none !important; visibility: hidden !important; height: 0px !important; position: absolute !important; }
@@ -256,7 +265,6 @@ if not st.session_state.logged_in:
             else: st.error("계정 정보가 올바르지 않습니다.")
 
     with auth_tab2:
-        # 🔐 보안 패치: 외부 회원가입은 무조건 '일반 학생' 전용으로 고정 (선택창 제거)
         st.markdown("⚠️ 일반 학생 사용자 가입 전용 공간입니다.")
         new_id = st.text_input("학번 / 아이디 (숫자 위주)", key="join_id_main")
         new_name = st.text_input("이름", key="join_name_main")
@@ -354,16 +362,12 @@ else:
     # ==================== [[ 🔗 학교 필수 링크 모음 ]] ====================
     elif menu_choice == "🔗 학교 필수 링크 모음":
         st.markdown("### 🔗 학교 생활 필수 링크 모음")
-        st.write("학사일정, 급식, 시간표는 아래의 공식 서비스 링크를 통해 가장 정확하게 확인할 수 있습니다.")
+        st.write("실시간 반별 시간표를 확인하려면 아래의 공식 서비스 링크 단추를 클릭하세요.")
         
+        # 🔗 리로스쿨을 완벽히 제거하고 컴시간알리미만 뚜렷하게 남김
         st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
         st.markdown("#### ⏱️ 오늘의 반별 실시간 시간표")
         st.link_button("🏫 컴시간알리미 바로가기", "https://comcigan.com/", use_container_width=True)
-        st.markdown("</div>", unsafe_allow_html=True)
-
-        st.markdown("<div class='custom-card'>", unsafe_allow_html=True)
-        st.markdown("#### 📅 학사일정 & 🍱 급식 & 📄 가정통신문")
-        st.link_button("🚀 리로스쿨 바로가기", "https://riroschool.kr/", use_container_width=True)
         st.markdown("</div>", unsafe_allow_html=True)
 
     # ==================== [[ ⚙️ 관리자 메뉴 ]] ====================
@@ -396,7 +400,6 @@ else:
                             st.success("관리자 정보 수정 완료!")
                             st.rerun()
                             
-            # 🔐 보안 패치: 최고관리자만 수동으로 일반 관리자를 생성해 줄 수 있는 탭
             with tab_create_adm:
                 st.markdown("#### ➕ 신규 일반 관리자 생성")
                 cadm_id = st.text_input("관리자용 아이디 ID", key="c_adm_id")
